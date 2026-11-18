@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FaultFinder — The Electronics Detective</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <!-- Top Header / HUD -->
+    <header class="top-bar" role="banner">
+      <div class="brand-group">
+        <button id="btn-home-logo" class="logo-btn" aria-label="Go to Home Screen">
+          <span class="logo-mark" aria-hidden="true">⚡</span>
+          <span class="logo-text">FaultFinder</span>
+        </button>
+        <span id="hud-rank-badge" class="rank-badge">Apprentice</span>
+      </div>
+
+      <div id="hud-stats" class="hud-stats hidden" aria-live="polite">
+        <div class="hud-pill" title="Current Case">
+          <span class="hud-label">Case</span>
+          <span id="hud-case" class="hud-value">#1</span>
+        </div>
+        <div class="hud-pill" title="Lives Remaining">
+          <span class="hud-label">Lives</span>
+          <span id="hud-lives" class="hud-value lives-hearts">♥♥♥</span>
+        </div>
+        <div class="hud-pill" title="Case Score">
+          <span class="hud-label">Score</span>
+          <span id="hud-score" class="hud-value">1000</span>
+        </div>
+        <div class="hud-pill" title="Elapsed Time">
+          <span class="hud-label">Time</span>
+          <span id="hud-timer" class="hud-value">00:00</span>
+        </div>
+        <div class="hud-pill" title="Hints Used">
+          <span class="hud-label">Hints</span>
+          <span id="hud-hints" class="hud-value">0</span>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button id="btn-how-to-play" class="btn btn-ghost btn-sm" type="button">How to Play</button>
+        <button id="btn-sound-toggle" class="btn btn-ghost btn-sm" type="button" aria-pressed="false" title="Toggle Sound Effects">🔇</button>
+      </div>
+    </header>
+
+    <!-- SCREEN 1: HOME -->
+    <main id="screen-home" class="screen active" aria-labelledby="home-title">
+      <section class="hero-card">
+        <div class="hero-eyebrow">EMBARKO STUDENT CHALLENGE EDITION</div>
+        <h1 id="home-title" class="hero-title">FaultFinder</h1>
+        <p class="hero-tagline">Every circuit has a secret. Find the fault. Prove it with measurements.</p>
+        <p class="hero-pitch">
+          Step onto the repair bench as an electronics detective. Probe live and powered-off circuits with a real-time virtual multimeter, spot the faulty part, and diagnose the root cause.
+        </p>
+
+        <div class="hero-cta-row">
+          <button id="btn-start-investigation" class="btn btn-primary btn-lg" type="button">
+            Start Investigation
+          </button>
+          <button id="btn-skip-to-case1" class="btn btn-secondary btn-lg" type="button">
+            Jump to Case #1
+          </button>
+        </div>
+
+        <div class="player-progress-bar-wrap" aria-label="Player XP Progress">
+          <div class="progress-meta">
+            <span id="home-rank-label">Rank: Apprentice</span>
+            <span id="home-xp-label">0 XP</span>
+          </div>
+          <div class="progress-track">
+            <div id="home-xp-fill" class="progress-fill" style="width: 0%"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="home-grid">
+        <article class="card">
+          <h2>How to Play</h2>
+          <ol class="steps-list">
+            <li><strong>Inspect &amp; Power:</strong> Read the customer complaint and check whether the bench supply is ON or OFF.</li>
+            <li><strong>Probe the Circuit:</strong> Tap test points (TP1, TP2, TP3) to place your Red (+) and Black (−) probes and read DC Volts, Resistance (Ω), or Continuity.</li>
+            <li><strong>Submit Diagnosis:</strong> Pick the faulty component and fault type to earn up to 3 stars and XP.</li>
+          </ol>
+        </article>
+
+        <article class="card">
+          <div class="card-header-row">
+            <h2>Case Files</h2>
+            <span class="badge">Stage 1</span>
+          </div>
+          <div id="home-case-list" class="case-list"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-header-row">
+            <h2>Local Leaderboard</h2>
+            <span class="badge badge-muted">This Device</span>
+          </div>
+          <div id="home-leaderboard" class="leaderboard-preview"></div>
+        </article>
+      </section>
+    </main>
+
+    <!-- SCREEN 2: WORKBENCH (CASE PLAY) -->
+    <main id="screen-workbench" class="screen hidden" aria-label="Electronics Workbench">
+      <!-- Tutorial Guided Banner (shown on Case 0) -->
+      <div id="tutorial-banner" class="tutorial-banner hidden" role="region" aria-label="Tutorial Guide">
+        <div class="tutorial-content">
+          <span class="tutorial-badge">TUTORIAL</span>
+          <p id="tutorial-step-text">Step 1: Tap TP2 on the schematic to move your Red probe and measure voltage.</p>
+        </div>
+        <button id="btn-skip-tutorial" class="btn btn-ghost btn-sm" type="button">Skip Tutorial →</button>
+      </div>
+
+      <div class="workbench-layout">
+        <!-- Left Column: Brief + Schematic + Log -->
+        <div class="workbench-main">
+          <section class="card brief-card">
+            <div class="brief-header">
+              <div>
+                <span id="case-chapter" class="case-chapter">Chapter 1: Basics</span>
+                <h2 id="case-title" class="case-title">Case #1: Dead LED Indicator</h2>
+              </div>
+              <div class="power-control">
+                <span class="power-label">Bench Supply</span>
+                <button id="btn-power-toggle" class="power-switch is-on" type="button" aria-pressed="true">
+                  <span class="power-led" aria-hidden="true"></span>
+                  <span id="power-state-text">POWER ON</span>
+                </button>
+              </div>
+            </div>
+            <p id="case-brief" class="case-brief"></p>
+          </section>
+
+          <section class="card schematic-card">
+            <div class="card-header-row">
+              <h3>Circuit Schematic</h3>
+              <div class="probe-legend">
+                <span class="legend-item"><span class="dot dot-red"></span> Red: <strong id="legend-red-tp">TP1</strong></span>
+                <span class="legend-item"><span class="dot dot-black"></span> Black: <strong id="legend-black-tp">TP3</strong></span>
+                <span class="probe-target-toggle" role="group" aria-label="Active probe to place on tap">
+                  <span>Tap moves:</span>
+                  <button id="btn-select-red" class="chip active-red" type="button">Red (+)</button>
+                  <button id="btn-select-black" class="chip" type="button">Black (−)</button>
+                </span>
+              </div>
+            </div>
+
+            <div id="schematic-container" class="schematic-container" aria-label="Interactive Circuit Schematic"></div>
+          </section>
+
+          <section class="card log-card">
+            <div class="card-header-row">
+              <h3>Measurements Log</h3>
+              <span id="log-count-badge" class="badge badge-muted">0 readings</span>
+            </div>
+            <div id="measurements-log" class="measurements-log">
+              <p class="empty-log">No measurements taken yet. Tap a test point to probe the circuit.</p>
+            </div>
+          </section>
+        </div>
+
+        <!-- Right Column / Mobile Sticky Bottom: Virtual Multimeter + Actions -->
+        <aside class="workbench-sidebar" aria-label="Virtual Multimeter and Actions">
+          <section class="card multimeter-card">
+            <div class="dmm-brand-row">
+              <span class="dmm-brand">FF-8800 PRO DMM</span>
+              <span id="dmm-status-badge" class="dmm-status">READY</span>
+            </div>
+
+            <div class="dmm-screen" aria-live="polite">
+              <div class="dmm-screen-meta">
+                <span id="dmm-mode-label">DC VOLTS</span>
+                <span id="dmm-probes-label">RED: TP1 · BLK: TP3</span>
+              </div>
+              <div id="dmm-readout" class="dmm-readout">0.00 V</div>
+              <div id="dmm-warning" class="dmm-warning hidden"></div>
+            </div>
+
+            <div class="dmm-controls">
+              <div class="dmm-mode-group" role="radiogroup" aria-label="Multimeter Mode">
+                <button class="dmm-mode-btn active" data-mode="DCV" type="button">DC V</button>
+                <button class="dmm-mode-btn" data-mode="RES" type="button">Ω (Off)</button>
+                <button class="dmm-mode-btn" data-mode="CONT" type="button">🔊 Cont</button>
+              </div>
+
+              <button id="btn-take-reading" class="btn btn-primary btn-block" type="button">
+                Measure Now
+              </button>
+            </div>
+          </section>
+
+          <section class="card action-card">
+            <button id="btn-open-diagnosis" class="btn btn-accent btn-block btn-lg" type="button">
+              Submit Diagnosis
+            </button>
+            <div class="action-secondary-row">
+              <button id="btn-ask-mentor" class="btn btn-secondary" type="button">
+                Ask Mentor (-150)
+              </button>
+              <button id="btn-back-cases" class="btn btn-ghost" type="button">
+                All Cases
+              </button>
+            </div>
+            <div id="mentor-box" class="mentor-box hidden" aria-live="polite"></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <!-- TEST RUNNER OVERLAY (?test=1) -->
+    <section id="test-runner-panel" class="card test-panel hidden" aria-label="Automated Test Results">
+      <div class="card-header-row">
+        <h2>Automated Verification Suite (?test=1)</h2>
+        <button id="btn-close-tests" class="btn btn-ghost btn-sm" type="button">Close</button>
+      </div>
+      <pre id="test-output" class="test-output"></pre>
+    </section>
+  </div>
+
+  <!-- MODAL: DIAGNOSIS -->
+  <div id="modal-diagnosis" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="diag-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="diag-title">Submit Diagnosis</h2>
+        <button id="btn-close-diag" class="btn btn-ghost btn-sm" type="button" aria-label="Close">✕</button>
+      </div>
+      <form id="form-diagnosis" class="diag-form">
+        <label class="field-label" for="select-component">Faulty Component</label>
+        <select id="select-component" class="field-select" required></select>
+
+        <label class="field-label" for="select-fault-type">Fault Type</label>
+        <select id="select-fault-type" class="field-select" required>
+          <option value="open">Open circuit</option>
+          <option value="short">Short circuit</option>
+          <option value="wrong_value">Wrong value</option>
+          <option value="reversed">Reversed polarity</option>
+          <option value="dead">Dead</option>
+          <option value="leaky">Leaky</option>
+        </select>
+
+        <div id="diag-feedback" class="diag-feedback hidden" role="alert"></div>
+
+        <div class="modal-actions">
+          <button id="btn-cancel-diag" class="btn btn-ghost" type="button">Cancel</button>
+          <button id="btn-confirm-diag" class="btn btn-accent" type="submit">Confirm Diagnosis</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: RESULT -->
+  <div id="modal-result" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="result-title">
+    <div class="modal-card result-card">
+      <div id="result-stars" class="result-stars" aria-label="Stars earned">★★★</div>
+      <h2 id="result-title">Case Solved!</h2>
+      <p id="result-explanation" class="result-explanation"></p>
+      <div id="result-learn" class="result-learn"></div>
+      <div id="result-score-breakdown" class="score-breakdown"></div>
+
+      <div id="nickname-save-row" class="nickname-row">
+        <label class="field-label" for="input-nickname">Save score to Local Leaderboard</label>
+        <div class="nickname-input-group">
+          <input id="input-nickname" class="field-input" type="text" maxlength="16" placeholder="Detective" />
+          <button id="btn-save-score" class="btn btn-secondary" type="button">Save</button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-result-home" class="btn btn-ghost" type="button">Home</button>
+        <button id="btn-next-case" class="btn btn-primary" type="button">Next Case →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: HOW TO PLAY -->
+  <div id="modal-how-to" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="howto-title">How to Play FaultFinder</h2>
+        <button id="btn-close-howto" class="btn btn-ghost btn-sm" type="button" aria-label="Close">✕</button>
+      </div>
+      <ol class="steps-list">
+        <li><strong>Check Power:</strong> Use <strong>DC V</strong> with power <strong>ON</strong>. Always switch power <strong>OFF</strong> before measuring <strong>Resistance (Ω)</strong> or <strong>Continuity</strong>, or you'll get a warning and a −200 pt penalty.</li>
+        <li><strong>Place Probes:</strong> Select Red (+) or Black (−) and tap any test point (TP1, TP2, TP3) on the schematic. Readings follow <code>V(Red) − V(Black)</code>.</li>
+        <li><strong>Prove &amp; Diagnose:</strong> Fewer measurements and zero hints earn bonus points. Select the faulty component and fault type when you're sure.</li>
+      </ol>
+      <div class="modal-actions">
+        <button id="btn-ok-howto" class="btn btn-primary" type="button">Got It</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
