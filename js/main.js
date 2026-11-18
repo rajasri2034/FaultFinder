@@ -1,5 +1,5 @@
 /**
- * FaultFinder Main Application Controller & Screen Router (Stage 1 + Stage 2).
+ * FaultFinder Main Application Controller & Screen Router (Stage 1 + Stage 2 + Stage 3).
  */
 
 import {
@@ -538,11 +538,21 @@ function bindEvents() {
 }
 
 async function maybeRunBrowserTests() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('test') !== '1') return;
   const panel = document.getElementById('test-runner-panel');
   const out = document.getElementById('test-output');
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get('test') !== '1') {
+    if (panel) {
+      panel.classList.add('hidden');
+      panel.hidden = true;
+    }
+    return;
+  }
+
+  panel.hidden = false;
   panel.classList.remove('hidden');
+  out.textContent = '';
   try {
     const mod = await import('../tests/run-tests.js');
     const report = await mod.runAllTests({

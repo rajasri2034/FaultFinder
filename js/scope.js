@@ -1,5 +1,5 @@
 /**
- * FaultFinder Oscilloscope Engine & Canvas Renderer (Stage 2).
+ * FaultFinder Oscilloscope Engine & Midnight Neon Blueprint Canvas Renderer.
  * Supports sine, rectified, ripple, square/pwm, rc, dc/flat, and zero waveforms.
  */
 
@@ -189,12 +189,12 @@ export class OscilloscopeView {
     const w = rect.width;
     const h = rect.height;
 
-    ctx.fillStyle = '#06140e';
+    ctx.fillStyle = '#111A33';
     ctx.fillRect(0, 0, w, h);
 
     const cols = 10;
     const rows = 8;
-    ctx.strokeStyle = 'rgba(74, 246, 168, 0.16)';
+    ctx.strokeStyle = 'rgba(41, 54, 87, 0.85)';
     ctx.lineWidth = 1;
 
     for (let c = 1; c < cols; c += 1) {
@@ -212,7 +212,7 @@ export class OscilloscopeView {
       ctx.stroke();
     }
 
-    ctx.strokeStyle = 'rgba(74, 246, 168, 0.35)';
+    ctx.strokeStyle = '#293657';
     ctx.beginPath();
     ctx.moveTo(0, h / 2);
     ctx.lineTo(w, h / 2);
@@ -224,10 +224,9 @@ export class OscilloscopeView {
     const pxPerDivY = h / rows;
     const centerY = h / 2 - this.offsetDiv * pxPerDivY;
 
-    ctx.strokeStyle = '#22e58a';
-    ctx.shadowColor = 'rgba(34, 229, 138, 0.65)';
-    ctx.shadowBlur = 6;
-    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = '#00F5FF';
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 2.2;
     ctx.beginPath();
 
     const steps = Math.max(200, Math.round(w));
@@ -240,6 +239,5 @@ export class OscilloscopeView {
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
-    ctx.shadowBlur = 0;
   }
 }
