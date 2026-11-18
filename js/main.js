@@ -1,5 +1,5 @@
 /**
- * FaultFinder Main Application Controller & Screen Router.
+ * FaultFinder Main Application Controller & Screen Router (Stage 1 + Stage 2).
  */
 
 import {
@@ -13,6 +13,7 @@ import {
 import { upsertLocal } from './leaderboard.js';
 import { FAULT_LABELS, FAULT_TYPES, getCase, listCases } from './levels.js';
 import { getMentorHint } from './mentor.js';
+import { generateWaveform, measureWaveform, OscilloscopeView, SCOPE_LAB } from './scope.js?v=2';
 import { loadSave, writeSave } from './storage.js';
 import { renderHome, renderMeasurementsLog, renderSchematic } from './ui.js';
 
@@ -41,6 +42,9 @@ const state = {
   solvedSuccess: false,
   tutorialStep: 0,
   lastScoreResult: null,
+  scopeTp: 'TP2',
+  scopeFaulty: true,
+  scopeView: null,
 };
 
 function playTone(freq, durationMs = 70) {
@@ -65,7 +69,52 @@ function playTone(freq, durationMs = 70) {
 function showScreen(screenId) {
   document.getElementById('screen-home').classList.toggle('hidden', screenId !== 'home');
   document.getElementById('screen-workbench').classList.toggle('hidden', screenId !== 'workbench');
+  document.getElementById('screen-scope-lab').classList.toggle('hidden', screenId !== 'scope-lab');
   document.getElementById('hud-stats').classList.toggle('hidden', screenId !== 'workbench');
+
+  if (state.scopeView) {
+    if (screenId === 'scope-lab') state.scopeView.start();
+    else state.scopeView.stop();
+  }
+}
+
+function updateScopeLab() {
+  const bank = state.scopeFaulty ? SCOPE_LAB.faultyWaveforms : SCOPE_LAB.healthyWaveforms;
+  const model = bank[state.scopeTp] || bank.TP2;
+  const stats = measureWaveform(generateWaveform(model, 2, 100));
+
+  document.getElementById('scope-probe-badge').textContent = `Probe: ${state.scopeTp}`;
+  document.getElementById('scope-signal-desc').textContent = `${state.scopeTp}: ${model.label}`;
+  document.getElementById('scope-vpp').textContent = `Vpp: ${stats.vpp.toFixed(2)} V`;
+  document.getElementById('scope-freq').textContent = `Freq: ${stats.frequency} Hz`;
+
+  const dutyEl = document.getElementById('scope-duty');
+  if (stats.duty !== null) {
+    dutyEl.textContent = `Duty: ${Math.round(stats.duty * 100)}%`;
+    dutyEl.classList.remove('hidden');
+  } else {
+    dutyEl.classList.add('hidden');
+  }
+
+  document.querySelectorAll('.scope-tp-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.tp === state.scopeTp);
+  });
+
+  if (state.scopeView) {
+    state.scopeView.setModel(model);
+  }
+}
+
+function openScopeLab() {
+  if (!state.scopeView) {
+    const canvas = document.getElementById('scope-canvas');
+    state.scopeView = new OscilloscopeView(canvas);
+  }
+  state.scopeTp = SCOPE_LAB.defaultTp;
+  state.scopeFaulty = true;
+  document.getElementById('btn-scope-fault-toggle').textContent = 'State: Faulty (D1 Open)';
+  showScreen('scope-lab');
+  updateScopeLab();
 }
 
 function updateHud() {
@@ -326,6 +375,56 @@ function bindEvents() {
 
   document.getElementById('btn-skip-to-case1').addEventListener('click', () => startCase(1));
   document.getElementById('btn-skip-tutorial').addEventListener('click', () => startCase(1));
+  document.getElementById('btn-open-scope-lab').addEventListener('click', openScopeLab);
+
+  document.getElementById('btn-scope-back-home').addEventListener('click', () => {
+    renderHome(state.save, listCases());
+    showScreen('home');
+  });
+
+  document.getElementById('btn-scope-fault-toggle').addEventListener('click', (ev) => {
+    state.scopeFaulty = !state.scopeFaulty;
+    ev.currentTarget.textContent = state.scopeFaulty ? 'State: Faulty (D1 Open)' : 'State: Healthy';
+    updateScopeLab();
+  });
+
+  document.getElementById('btn-dismiss-scope-hint').addEventListener('click', () => {
+    document.getElementById('scope-first-hint').classList.add('hidden');
+  });
+
+  document.querySelectorAll('.scope-tp-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.scopeTp = btn.dataset.tp;
+      updateScopeLab();
+    });
+  });
+
+  document.querySelectorAll('.scope-tp').forEach((node) => {
+    node.addEventListener('click', () => {
+      state.scopeTp = node.dataset.scopeTp;
+      updateScopeLab();
+    });
+  });
+
+  document.getElementById('scope-vdiv').addEventListener('change', (ev) => {
+    if (state.scopeView) state.scopeView.voltsPerDiv = Number(ev.target.value);
+  });
+
+  document.getElementById('scope-tdiv').addEventListener('change', (ev) => {
+    if (state.scopeView) state.scopeView.timePerDivMs = Number(ev.target.value);
+  });
+
+  document.getElementById('scope-pos').addEventListener('input', (ev) => {
+    const val = Number(ev.target.value);
+    document.getElementById('scope-pos-val').textContent = val.toFixed(1);
+    if (state.scopeView) state.scopeView.offsetDiv = val;
+  });
+
+  document.getElementById('btn-scope-freeze').addEventListener('click', (ev) => {
+    if (!state.scopeView) return;
+    state.scopeView.frozen = !state.scopeView.frozen;
+    ev.currentTarget.textContent = state.scopeView.frozen ? 'Resume' : 'Freeze';
+  });
 
   document.getElementById('home-case-list').addEventListener('click', (ev) => {
     const btn = ev.target.closest('.case-item-btn');

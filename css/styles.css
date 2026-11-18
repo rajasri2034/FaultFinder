@@ -944,3 +944,98 @@ body {
   overflow-x: auto;
   white-space: pre-wrap;
 }
+/* Stage 2: Oscilloscope & Scope Lab */
+.scope-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 960px) {
+  .scope-layout {
+    grid-template-columns: 1fr 1.25fr;
+    align-items: start;
+  }
+}
+
+.scope-readouts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scope-chip {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #0d1d17;
+  border: 1px solid #26483a;
+  color: #4af6a8;
+}
+
+.scope-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 2px solid #26483a;
+  margin-bottom: 14px;
+}
+
+.scope-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.scope-hint-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 20, 14, 0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 18px;
+  gap: 12px;
+}
+
+.scope-hint-overlay p {
+  margin: 0;
+  max-width: 44ch;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.scope-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.scope-control-group {
+  display: grid;
+  gap: 6px;
+}
+
+.scope-btn-row {
+  display: flex;
+  gap: 6px;
+}
+
+.scope-tp-btn.active {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.16);
+  color: var(--accent-cyan);
+}
+
+.scope-slider {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--accent-cyan);
+}

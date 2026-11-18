@@ -67,6 +67,9 @@
           <button id="btn-skip-to-case1" class="btn btn-secondary btn-lg" type="button">
             Jump to Case #1
           </button>
+          <button id="btn-open-scope-lab" class="btn btn-ghost btn-lg" type="button">
+            Oscilloscope Lab
+          </button>
         </div>
 
         <div class="player-progress-bar-wrap" aria-label="Player XP Progress">
@@ -110,7 +113,6 @@
 
     <!-- SCREEN 2: WORKBENCH (CASE PLAY) -->
     <main id="screen-workbench" class="screen hidden" aria-label="Electronics Workbench">
-      <!-- Tutorial Guided Banner (shown on Case 0) -->
       <div id="tutorial-banner" class="tutorial-banner hidden" role="region" aria-label="Tutorial Guide">
         <div class="tutorial-content">
           <span class="tutorial-badge">TUTORIAL</span>
@@ -120,7 +122,6 @@
       </div>
 
       <div class="workbench-layout">
-        <!-- Left Column: Brief + Schematic + Log -->
         <div class="workbench-main">
           <section class="card brief-card">
             <div class="brief-header">
@@ -167,7 +168,6 @@
           </section>
         </div>
 
-        <!-- Right Column / Mobile Sticky Bottom: Virtual Multimeter + Actions -->
         <aside class="workbench-sidebar" aria-label="Virtual Multimeter and Actions">
           <section class="card multimeter-card">
             <div class="dmm-brand-row">
@@ -215,6 +215,143 @@
       </div>
     </main>
 
+    <!-- SCREEN 3: SCOPE LAB (STAGE 2 OSCILLOSCOPE DEMO) -->
+    <main id="screen-scope-lab" class="screen hidden" aria-label="Oscilloscope Lab">
+      <section class="card brief-card" style="margin-bottom: 16px;">
+        <div class="brief-header">
+          <div>
+            <span class="case-chapter">Stage 2 · Oscilloscope Preview (Case 12 Topology)</span>
+            <h2 class="case-title">Scope Lab: Half-Wave Rectifier (D1 Open)</h2>
+          </div>
+          <div class="top-actions">
+            <button id="btn-scope-fault-toggle" class="btn btn-secondary btn-sm" type="button">State: Faulty (D1 Open)</button>
+            <button id="btn-scope-back-home" class="btn btn-ghost btn-sm" type="button">← Home</button>
+          </div>
+        </div>
+        <p class="case-brief">
+          12 Vpk 50 Hz AC secondary feeds silicon diode D1 (Vf = 0.7 V) and a 1 kΩ load. Probe TP1 (AC In) vs. TP2 (Rectifier Out) to see the open-diode fault on the scope.
+        </p>
+      </section>
+
+      <div class="scope-layout">
+        <section class="card">
+          <div class="card-header-row">
+            <h3>Half-Wave Rectifier Schematic</h3>
+            <span id="scope-probe-badge" class="badge">Probe: TP2</span>
+          </div>
+          <div class="schematic-container">
+            <svg class="schematic-svg" viewBox="0 0 500 220" role="img" aria-label="Half-Wave Rectifier Schematic">
+              <line x1="70" y1="150" x2="70" y2="90" stroke="#4f6b8a" stroke-width="3" />
+              <line x1="70" y1="90" x2="185" y2="90" stroke="#4f6b8a" stroke-width="3" />
+              <line x1="255" y1="90" x2="390" y2="90" stroke="#4f6b8a" stroke-width="3" />
+              <line x1="390" y1="90" x2="390" y2="180" stroke="#4f6b8a" stroke-width="3" />
+              <line x1="70" y1="180" x2="390" y2="180" stroke="#4f6b8a" stroke-width="3" />
+
+              <g transform="translate(70, 145)">
+                <circle cx="0" cy="0" r="24" fill="#121c28" stroke="#00e5ff" stroke-width="2.2" />
+                <text x="0" y="4" text-anchor="middle" fill="#00e5ff" font-size="11" font-family="JetBrains Mono, monospace">12V~</text>
+              </g>
+
+              <!-- Diode D1 -->
+              <g transform="translate(220, 90)">
+                <polygon points="-14,-14 -14,14 14,0" fill="#1e293b" stroke="#ffb020" stroke-width="2.2" />
+                <line x1="16" y1="-14" x2="16" y2="14" stroke="#ffb020" stroke-width="2.5" />
+                <text x="0" y="-20" text-anchor="middle" fill="#eef4fb" font-size="12" font-weight="700">D1 (1N4007)</text>
+              </g>
+
+              <!-- Load R1 -->
+              <g transform="translate(390, 135)">
+                <rect x="-14" y="-26" width="28" height="52" rx="5" fill="#182433" stroke="#9fb0c4" stroke-width="2" />
+                <text x="26" y="4" fill="#ffb020" font-size="11" font-family="JetBrains Mono, monospace">R1 1kΩ</text>
+              </g>
+
+              <g class="tp-node scope-tp" data-scope-tp="TP1" tabindex="0" role="button" aria-label="Scope probe TP1">
+                <circle class="tp-hit" cx="130" cy="90" r="24" />
+                <circle class="tp-ring" cx="130" cy="90" r="10" fill="#0b1016" stroke="#9fb0c4" stroke-width="2" />
+                <circle cx="130" cy="90" r="4.5" fill="#00e5ff" />
+                <text x="130" y="72" text-anchor="middle" fill="#eef4fb" font-size="11" font-weight="700" font-family="JetBrains Mono, monospace">TP1 (AC)</text>
+              </g>
+
+              <g class="tp-node scope-tp" data-scope-tp="TP2" tabindex="0" role="button" aria-label="Scope probe TP2">
+                <circle class="tp-hit" cx="320" cy="90" r="24" />
+                <circle class="tp-ring" cx="320" cy="90" r="10" fill="#0b1016" stroke="#9fb0c4" stroke-width="2" />
+                <circle cx="320" cy="90" r="4.5" fill="#22e58a" />
+                <text x="320" y="72" text-anchor="middle" fill="#eef4fb" font-size="11" font-weight="700" font-family="JetBrains Mono, monospace">TP2 (Out)</text>
+              </g>
+
+              <g class="tp-node scope-tp" data-scope-tp="TP3" tabindex="0" role="button" aria-label="Scope probe TP3">
+                <circle class="tp-hit" cx="230" cy="180" r="24" />
+                <circle class="tp-ring" cx="230" cy="180" r="10" fill="#0b1016" stroke="#9fb0c4" stroke-width="2" />
+                <circle cx="230" cy="180" r="4.5" fill="#9fb0c4" />
+                <text x="230" y="206" text-anchor="middle" fill="#eef4fb" font-size="11" font-weight="700" font-family="JetBrains Mono, monospace">TP3 (GND)</text>
+              </g>
+            </svg>
+          </div>
+          <p id="scope-signal-desc" class="case-brief" style="margin-top: 10px;"></p>
+        </section>
+
+        <section class="card scope-panel">
+          <div class="card-header-row">
+            <h3>Oscilloscope (CH1)</h3>
+            <div class="scope-readouts">
+              <span class="scope-chip" id="scope-vpp">Vpp: 0.00 V</span>
+              <span class="scope-chip" id="scope-freq">Freq: 0 Hz</span>
+              <span class="scope-chip hidden" id="scope-duty">Duty: --</span>
+            </div>
+          </div>
+
+          <div class="scope-canvas-wrap">
+            <canvas id="scope-canvas" class="scope-canvas"></canvas>
+            <div id="scope-first-hint" class="scope-hint-overlay">
+              <p><strong>How to read this scope:</strong> Grid is 8×10 divisions. Tap <strong>TP1</strong> to see the 24 Vpp AC input, then tap <strong>TP2</strong>—with D1 open, the half-wave signal vanishes to 0 V.</p>
+              <button id="btn-dismiss-scope-hint" class="btn btn-primary btn-sm" type="button">Got it</button>
+            </div>
+          </div>
+
+          <div class="scope-controls-grid">
+            <div class="scope-control-group">
+              <span class="field-label">Probe Point</span>
+              <div class="scope-btn-row">
+                <button class="btn btn-secondary btn-sm scope-tp-btn" data-tp="TP1" type="button">TP1</button>
+                <button class="btn btn-secondary btn-sm scope-tp-btn active" data-tp="TP2" type="button">TP2</button>
+                <button class="btn btn-secondary btn-sm scope-tp-btn" data-tp="TP3" type="button">TP3</button>
+              </div>
+            </div>
+
+            <div class="scope-control-group">
+              <label class="field-label" for="scope-vdiv">Volts / Div</label>
+              <select id="scope-vdiv" class="field-select">
+                <option value="1">1 V/div</option>
+                <option value="2">2 V/div</option>
+                <option value="5" selected>5 V/div</option>
+                <option value="10">10 V/div</option>
+              </select>
+            </div>
+
+            <div class="scope-control-group">
+              <label class="field-label" for="scope-tdiv">Time / Div</label>
+              <select id="scope-tdiv" class="field-select">
+                <option value="2">2 ms/div</option>
+                <option value="5" selected>5 ms/div</option>
+                <option value="10">10 ms/div</option>
+                <option value="20">20 ms/div</option>
+              </select>
+            </div>
+
+            <div class="scope-control-group">
+              <label class="field-label" for="scope-pos">Position / Trigger (<span id="scope-pos-val">0.0</span> div)</label>
+              <input id="scope-pos" type="range" min="-2" max="2" step="0.5" value="0" class="scope-slider" />
+            </div>
+
+            <div class="scope-control-group">
+              <span class="field-label">Capture</span>
+              <button id="btn-scope-freeze" class="btn btn-primary btn-block" type="button">Freeze</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
     <!-- TEST RUNNER OVERLAY (?test=1) -->
     <section id="test-runner-panel" class="card test-panel hidden" aria-label="Automated Test Results">
       <div class="card-header-row">
@@ -237,14 +374,7 @@
         <select id="select-component" class="field-select" required></select>
 
         <label class="field-label" for="select-fault-type">Fault Type</label>
-        <select id="select-fault-type" class="field-select" required>
-          <option value="open">Open circuit</option>
-          <option value="short">Short circuit</option>
-          <option value="wrong_value">Wrong value</option>
-          <option value="reversed">Reversed polarity</option>
-          <option value="dead">Dead</option>
-          <option value="leaky">Leaky</option>
-        </select>
+        <select id="select-fault-type" class="field-select" required></select>
 
         <div id="diag-feedback" class="diag-feedback hidden" role="alert"></div>
 
@@ -301,3 +431,4 @@
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
+<script type="module" src="js/main.js?v=2"></script>

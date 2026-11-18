@@ -1,5 +1,5 @@
 /**
- * FaultFinder DC Circuit Solver (Modified Nodal Analysis + Ideal Piecewise-Linear Diodes)
+ * FaultFinder DC Circuit Solver (Modified Nodal Analysis + Ideal Piecewise-Linear Diodes, NPN, Motor, Regulator)
  * Single source of truth for all voltage, resistance, continuity, and KVL/KCL checks.
  */
 
@@ -7,7 +7,7 @@ const R_OPEN = 1e12;
 const R_DIODE_OFF = 1e8;
 const R_SHORT = 0.01;
 const R_BLEED = 1e11;
-const OHM_OL_THRESHOLD = 4e7; // 40 MOhm DMM over-range
+const OHM_OL_THRESHOLD = 4e7;
 
 function solveLinearSystem(A, b) {
   const n = b.length;
@@ -24,9 +24,7 @@ function solveLinearSystem(A, b) {
         pivotRow = r;
       }
     }
-    if (maxAbs < 1e-15) {
-      return null;
-    }
+    if (maxAbs < 1e-15) return null;
     if (pivotRow !== col) {
       const tmp = M[col];
       M[col] = M[pivotRow];
@@ -57,10 +55,16 @@ function getEffectiveComponent(comp, fault, faultActive) {
   const isFaulty = Boolean(faultActive && fault && fault.component === comp.id);
   const fType = isFaulty ? fault.type : null;
 
-  if (comp.type === 'resistor') {
+  if (comp.type === 'vsource') {
+    return { ...comp, kind: 'vsource', voltage: comp.value };
+  }
+
+  if (comp.type === 'resistor' || comp.type === 'motor') {
     if (fType === 'open' || fType === 'dead') return { ...comp, kind: 'resistor', r: R_OPEN };
     if (fType === 'short') return { ...comp, kind: 'resistor', r: R_SHORT };
-    if (fType === 'wrong_value') return { ...comp, kind: 'resistor', r: fault.value ?? comp.wrongValue ?? comp.value };
+    if (fType === 'wrong-value' || fType === 'wrong_value') {
+      return { ...comp, kind: 'resistor', r: fault.value ?? comp.wrongValue ?? comp.value };
+    }
     return { ...comp, kind: 'resistor', r: comp.value };
   }
 
@@ -81,8 +85,19 @@ function getEffectiveComponent(comp, fault, faultActive) {
 
   if (comp.type === 'capacitor') {
     if (fType === 'short') return { ...comp, kind: 'resistor', r: R_SHORT };
-    if (fType === 'leaky') return { ...comp, kind: 'resistor', r: fault.value ?? 470 };
+    if (fType === 'leaky') return { ...comp, kind: 'resistor', r: fault.value ?? 1000 };
     return { ...comp, kind: 'resistor', r: R_OPEN };
+  }
+
+  if (comp.type === 'npn') {
+    if (fType === 'open' || fType === 'dead') return { ...comp, kind: 'dead_npn' };
+    if (fType === 'short') return { ...comp, kind: 'short_npn' };
+    return { ...comp, kind: 'npn', vbe: comp.vbe ?? 0.7, vceSat: comp.vceSat ?? 0.2, rceSat: comp.rceSat ?? 1.0 };
+  }
+
+  if (comp.type === 'regulator') {
+    if (fType === 'open' || fType === 'dead') return { ...comp, kind: 'dead_reg' };
+    return { ...comp, kind: 'regulator', vout: comp.vout ?? 5.0 };
   }
 
   return { ...comp, kind: 'resistor', r: R_OPEN };
@@ -98,7 +113,12 @@ export function solveCircuit(circuit, options = {}) {
 
   const effComps = circuit.components.map((c) => getEffectiveComponent(c, circuit.fault, faultActive));
   const diodes = effComps.filter((c) => c.kind === 'led' || c.kind === 'diode' || c.kind === 'zener');
+  const npns = effComps.filter((c) => c.kind === 'npn');
+  const regs = effComps.filter((c) => c.kind === 'regulator');
+  const vsources = effComps.filter((c) => c.kind === 'vsource');
+
   const diodeStates = new Map(diodes.map((d) => [d.id, 'off']));
+  const npnStates = new Map(npns.map((q) => [q.id, { be: 'off', ce: 'off' }]));
 
   let solution = null;
   let converged = false;
@@ -112,25 +132,31 @@ export function solveCircuit(circuit, options = {}) {
         pos: circuit.supply.positive,
         neg: circuit.supply.negative,
         voltage: circuit.supply.voltage,
-        isSupply: true,
       });
+    }
+    if (powerOn) {
+      for (const vs of vsources) {
+        activeSources.push({ id: vs.id, pos: vs.nodes[0], neg: vs.nodes[1], voltage: vs.voltage });
+      }
+      for (const reg of regs) {
+        activeSources.push({ id: reg.id, pos: reg.nodes[1], neg: reg.nodes[2], voltage: reg.vout });
+      }
     }
     for (const d of diodes) {
       const st = diodeStates.get(d.id);
-      if (st === 'fwd') {
-        activeSources.push({ id: d.id, pos: d.nodes[0], neg: d.nodes[1], voltage: d.vf, isDiode: true });
-      } else if (st === 'zener') {
-        activeSources.push({ id: d.id, pos: d.nodes[1], neg: d.nodes[0], voltage: d.vz, isDiode: true, reversed: true });
-      }
+      if (st === 'fwd') activeSources.push({ id: d.id, pos: d.nodes[0], neg: d.nodes[1], voltage: d.vf });
+      else if (st === 'zener') activeSources.push({ id: d.id, pos: d.nodes[1], neg: d.nodes[0], voltage: d.vz });
+    }
+    for (const q of npns) {
+      const st = npnStates.get(q.id);
+      if (st.be === 'on') activeSources.push({ id: `${q.id}_BE`, pos: q.nodes[0], neg: q.nodes[2], voltage: q.vbe });
     }
 
     const dim = numV + activeSources.length;
     const A = Array.from({ length: dim }, () => new Array(dim).fill(0));
     const z = new Array(dim).fill(0);
 
-    for (let i = 0; i < numV; i += 1) {
-      A[i][i] += 1 / R_BLEED;
-    }
+    for (let i = 0; i < numV; i += 1) A[i][i] += 1 / R_BLEED;
 
     const stampResistor = (n1, n2, r) => {
       const g = 1 / Math.max(r, 1e-9);
@@ -144,14 +170,41 @@ export function solveCircuit(circuit, options = {}) {
       }
     };
 
+    const stampNorton = (nPos, nNeg, g, iSrc) => {
+      const ip = varMap.get(nPos);
+      const ineg = varMap.get(nNeg);
+      if (ip !== undefined) {
+        A[ip][ip] += g;
+        z[ip] += iSrc;
+      }
+      if (ineg !== undefined) {
+        A[ineg][ineg] += g;
+        z[ineg] -= iSrc;
+      }
+      if (ip !== undefined && ineg !== undefined) {
+        A[ip][ineg] -= g;
+        A[ineg][ip] -= g;
+      }
+    };
+
     for (const c of effComps) {
       if (c.kind === 'resistor') {
         stampResistor(c.nodes[0], c.nodes[1], c.r);
-      } else {
+      } else if (c.kind === 'led' || c.kind === 'diode' || c.kind === 'zener') {
         if (c.leakR) stampResistor(c.nodes[0], c.nodes[1], c.leakR);
-        if (diodeStates.get(c.id) === 'off') {
-          stampResistor(c.nodes[0], c.nodes[1], R_DIODE_OFF);
-        }
+        if (diodeStates.get(c.id) === 'off') stampResistor(c.nodes[0], c.nodes[1], R_DIODE_OFF);
+      } else if (c.kind === 'npn') {
+        const st = npnStates.get(c.id);
+        if (st.be === 'off') stampResistor(c.nodes[0], c.nodes[2], R_DIODE_OFF);
+        if (st.ce === 'on') stampNorton(c.nodes[1], c.nodes[2], 1 / c.rceSat, c.vceSat / c.rceSat);
+        else stampResistor(c.nodes[1], c.nodes[2], R_OPEN);
+      } else if (c.kind === 'dead_npn') {
+        stampResistor(c.nodes[0], c.nodes[2], R_OPEN);
+        stampResistor(c.nodes[1], c.nodes[2], R_OPEN);
+      } else if (c.kind === 'short_npn') {
+        stampResistor(c.nodes[1], c.nodes[2], R_SHORT);
+      } else if (c.kind === 'dead_reg') {
+        stampResistor(c.nodes[1], c.nodes[2], R_OPEN);
       }
     }
 
@@ -171,31 +224,41 @@ export function solveCircuit(circuit, options = {}) {
     });
 
     solution = solveLinearSystem(A, z);
-    if (!solution) {
-      return { converged: false, singular: true, voltages: {}, branches: {} };
-    }
+    if (!solution) return { converged: false, singular: true, voltages: {}, branches: {} };
 
     const getV = (node) => (node === ground ? 0 : solution[varMap.get(node)] ?? 0);
     let changed = false;
 
     for (const d of diodes) {
-      const va = getV(d.nodes[0]);
-      const vc = getV(d.nodes[1]);
-      const vDrop = va - vc;
+      const vDrop = getV(d.nodes[0]) - getV(d.nodes[1]);
       const prev = diodeStates.get(d.id);
       let next = prev;
-
       if (prev === 'off') {
         if (vDrop > d.vf + 1e-6) next = 'fwd';
         else if (d.kind === 'zener' && -vDrop > d.vz + 1e-6) next = 'zener';
       } else {
-        const srcIdx = activeSources.findIndex((s) => s.id === d.id);
-        const rawI = srcIdx >= 0 ? solution[numV + srcIdx] : 0;
-        if (rawI < -1e-9) next = 'off';
+        const idx = activeSources.findIndex((s) => s.id === d.id);
+        if ((idx >= 0 ? solution[numV + idx] : 0) < -1e-9) next = 'off';
       }
-
       if (next !== prev) {
         diodeStates.set(d.id, next);
+        changed = true;
+      }
+    }
+
+    for (const q of npns) {
+      const st = npnStates.get(q.id);
+      const vbe = getV(q.nodes[0]) - getV(q.nodes[2]);
+      const vce = getV(q.nodes[1]) - getV(q.nodes[2]);
+      let nextBe = st.be;
+      if (st.be === 'off' && vbe > q.vbe + 1e-6) nextBe = 'on';
+      else if (st.be === 'on') {
+        const idx = activeSources.findIndex((s) => s.id === `${q.id}_BE`);
+        if ((idx >= 0 ? solution[numV + idx] : 0) < 1e-6) nextBe = 'off';
+      }
+      const nextCe = nextBe === 'on' && vce >= q.vceSat - 1e-6 ? 'on' : 'off';
+      if (nextBe !== st.be || nextCe !== st.ce) {
+        npnStates.set(q.id, { be: nextBe, ce: nextCe });
         changed = true;
       }
     }
@@ -218,14 +281,57 @@ export function solveCircuit(circuit, options = {}) {
     const vDiff = v1 - v2;
 
     if (c.kind === 'resistor') {
-      branches[c.id] = { voltage: vDiff, current: vDiff / c.r };
-    } else {
+      branches[c.id] = { voltage: vDiff, current: vDiff / c.r, nodes: c.nodes };
+    } else if (c.kind === 'vsource') {
+      const idx = activeSources.findIndex((s) => s.id === c.id);
+      branches[c.id] = { voltage: vDiff, current: idx >= 0 ? solution[numV + idx] : 0, nodes: c.nodes };
+    } else if (c.kind === 'led' || c.kind === 'diode' || c.kind === 'zener') {
       const st = diodeStates.get(c.id);
-      const srcIdx = activeSources.findIndex((s) => s.id === c.id);
-      let current = srcIdx >= 0 ? solution[numV + srcIdx] : vDiff / R_DIODE_OFF;
+      const idx = activeSources.findIndex((s) => s.id === c.id);
+      let current = idx >= 0 ? solution[numV + idx] : vDiff / R_DIODE_OFF;
       if (st === 'zener') current = -current;
       if (c.leakR) current += vDiff / c.leakR;
-      branches[c.id] = { voltage: vDiff, current, state: st };
+      branches[c.id] = { voltage: vDiff, current, state: st, nodes: c.nodes };
+    } else if (c.kind === 'npn') {
+      const st = npnStates.get(c.id);
+      const vb = voltages[c.nodes[0]] ?? 0;
+      const vc = voltages[c.nodes[1]] ?? 0;
+      const ve = voltages[c.nodes[2]] ?? 0;
+      const idx = activeSources.findIndex((s) => s.id === `${c.id}_BE`);
+      const ib = idx >= 0 ? solution[numV + idx] : (vb - ve) / R_DIODE_OFF;
+      const ic = st.ce === 'on' ? (vc - ve - c.vceSat) / c.rceSat : (vc - ve) / R_OPEN;
+      branches[c.id] = {
+        voltage: vc - ve,
+        current: ic,
+        terminalCurrents: { [c.nodes[0]]: ib, [c.nodes[1]]: ic, [c.nodes[2]]: -(ib + ic) },
+      };
+    } else if (c.kind === 'dead_npn') {
+      const vb = voltages[c.nodes[0]] ?? 0;
+      const vc = voltages[c.nodes[1]] ?? 0;
+      const ve = voltages[c.nodes[2]] ?? 0;
+      const ib = (vb - ve) / R_OPEN;
+      const ic = (vc - ve) / R_OPEN;
+      branches[c.id] = {
+        voltage: vc - ve,
+        current: ic,
+        terminalCurrents: { [c.nodes[0]]: ib, [c.nodes[1]]: ic, [c.nodes[2]]: -(ib + ic) },
+      };
+    } else if (c.kind === 'regulator') {
+      const idx = activeSources.findIndex((s) => s.id === c.id);
+      const iOut = idx >= 0 ? solution[numV + idx] : 0;
+      branches[c.id] = {
+        voltage: (voltages[c.nodes[1]] ?? 0) - (voltages[c.nodes[2]] ?? 0),
+        current: -iOut,
+        terminalCurrents: { [c.nodes[0]]: 0, [c.nodes[1]]: iOut, [c.nodes[2]]: -iOut },
+      };
+    } else if (c.kind === 'dead_reg') {
+      const vOut = (voltages[c.nodes[1]] ?? 0) - (voltages[c.nodes[2]] ?? 0);
+      const iOut = vOut / R_OPEN;
+      branches[c.id] = {
+        voltage: vOut,
+        current: iOut,
+        terminalCurrents: { [c.nodes[0]]: 0, [c.nodes[1]]: iOut, [c.nodes[2]]: -iOut },
+      };
     }
   }
 
@@ -241,15 +347,20 @@ export function solveCircuit(circuit, options = {}) {
 export function nodeCurrentBalance(circuit, solved, options = {}) {
   const powerOn = options.powerOn !== false;
   const balance = {};
-  for (const node of circuit.nodes) {
-    balance[node] = 0;
-  }
+  for (const node of circuit.nodes) balance[node] = 0;
 
   for (const comp of circuit.components) {
     const br = solved.branches[comp.id];
     if (!br) continue;
-    balance[comp.nodes[0]] -= br.current;
-    balance[comp.nodes[1]] += br.current;
+    if (br.terminalCurrents) {
+      for (const [node, curr] of Object.entries(br.terminalCurrents)) {
+        balance[node] -= curr;
+      }
+    } else {
+      const [n0, n1] = br.nodes || comp.nodes;
+      balance[n0] -= br.current;
+      balance[n1] += br.current;
+    }
   }
 
   if (powerOn && circuit.supply) {
@@ -266,27 +377,15 @@ export function nodeCurrentBalance(circuit, solved, options = {}) {
 
 export function measureVoltage(circuit, redNode, blackNode, options = {}) {
   const solved = solveCircuit(circuit, options);
-  if (!solved.converged || solved.singular) {
-    return { valid: false, ol: false, volts: null };
-  }
-  const vRed = solved.voltages[redNode] ?? 0;
-  const vBlack = solved.voltages[blackNode] ?? 0;
-  return { valid: true, ol: false, volts: vRed - vBlack };
+  if (!solved.converged || solved.singular) return { valid: false, ol: false, volts: null };
+  return { valid: true, ol: false, volts: (solved.voltages[redNode] ?? 0) - (solved.voltages[blackNode] ?? 0) };
 }
 
 export function measureResistance(circuit, redNode, blackNode, options = {}) {
   if (options.powerOn) {
-    return {
-      valid: false,
-      unstable: true,
-      ol: false,
-      ohms: null,
-      warning: 'Never measure resistance on a powered circuit',
-    };
+    return { valid: false, unstable: true, ol: false, ohms: null, warning: 'Never measure resistance on a powered circuit' };
   }
-  if (redNode === blackNode) {
-    return { valid: true, unstable: false, ol: false, ohms: 0 };
-  }
+  if (redNode === blackNode) return { valid: true, unstable: false, ol: false, ohms: 0 };
 
   const faultActive = options.faultActive !== false;
   const edges = [];
@@ -294,14 +393,20 @@ export function measureResistance(circuit, redNode, blackNode, options = {}) {
 
   for (const comp of circuit.components) {
     const eff = getEffectiveComponent(comp, circuit.fault, faultActive);
-    const r = eff.kind === 'resistor' ? eff.r : (eff.leakR ?? R_OPEN);
-    const [n1, n2] = eff.nodes;
-    edges.push([n1, n2, r]);
-    if (adj.has(n1)) adj.get(n1).push(n2);
-    if (adj.has(n2)) adj.get(n2).push(n1);
+    if (eff.kind === 'vsource') continue;
+    if (eff.kind === 'resistor') {
+      const [n1, n2] = eff.nodes;
+      edges.push([n1, n2, eff.r]);
+      if (adj.has(n1)) adj.get(n1).push(n2);
+      if (adj.has(n2)) adj.get(n2).push(n1);
+    } else if (eff.kind === 'led' || eff.kind === 'diode' || eff.kind === 'zener') {
+      const [n1, n2] = eff.nodes;
+      edges.push([n1, n2, eff.leakR ?? R_OPEN]);
+      if (adj.has(n1)) adj.get(n1).push(n2);
+      if (adj.has(n2)) adj.get(n2).push(n1);
+    }
   }
 
-  // BFS from blackNode so only connected nodes enter MNA (no bleed resistor bias)
   const reachable = new Set([blackNode]);
   const queue = [blackNode];
   while (queue.length > 0) {
@@ -314,14 +419,11 @@ export function measureResistance(circuit, redNode, blackNode, options = {}) {
     }
   }
 
-  if (!reachable.has(redNode)) {
-    return { valid: true, unstable: false, ol: true, ohms: Infinity };
-  }
+  if (!reachable.has(redNode)) return { valid: true, unstable: false, ol: true, ohms: Infinity };
 
   const otherNodes = [...reachable].filter((n) => n !== blackNode);
   const varMap = new Map(otherNodes.map((n, i) => [n, i]));
   const dim = otherNodes.length;
-
   const A = Array.from({ length: dim }, () => new Array(dim).fill(0));
   const z = new Array(dim).fill(0);
 
@@ -342,14 +444,10 @@ export function measureResistance(circuit, redNode, blackNode, options = {}) {
   if (ia !== undefined) z[ia] = 1.0;
 
   const x = solveLinearSystem(A, z);
-  if (!x) {
-    return { valid: false, unstable: true, ol: false, ohms: null };
-  }
+  if (!x) return { valid: false, unstable: true, ol: false, ohms: null };
 
   const ohms = Math.abs(x[ia]);
-  if (ohms > OHM_OL_THRESHOLD) {
-    return { valid: true, unstable: false, ol: true, ohms: Infinity };
-  }
+  if (ohms > OHM_OL_THRESHOLD) return { valid: true, unstable: false, ol: true, ohms: Infinity };
   return { valid: true, unstable: false, ol: false, ohms };
 }
 
