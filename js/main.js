@@ -1,5 +1,5 @@
 /**
- * CIRCUIT SLEUTH Main Application Controller & Screen Router (Stages 1–5).
+ * CIRCUIT SLEUTH Main Application Controller & Screen Router (Stages 1–6).
  */
 
 import {
@@ -18,7 +18,7 @@ import { FAULT_LABELS, FAULT_TYPES, getCase, listCases } from './levels.js?v=4';
 import { getMentorHint } from './mentor.js?v=5';
 import { generateWaveform, measureWaveform, OscilloscopeView, SCOPE_LAB } from './scope.js?v=3';
 import { loadSave, writeSave } from './storage.js';
-import { renderHome, renderMeasurementsLog, renderSchematic } from './ui.js?v=5';
+import { renderHome, renderMeasurementsLog, renderSchematic } from './ui.js?v=6';
 
 const MODE_MAP = {
   DCV: 'voltage',
@@ -549,13 +549,17 @@ function bindEvents() {
   document.getElementById('btn-select-red').addEventListener('click', () => {
     state.activeProbe = 'red';
     document.getElementById('btn-select-red').classList.add('active-red');
+    document.getElementById('btn-select-red').setAttribute('aria-pressed', 'true');
     document.getElementById('btn-select-black').classList.remove('active-black');
+    document.getElementById('btn-select-black').setAttribute('aria-pressed', 'false');
   });
 
   document.getElementById('btn-select-black').addEventListener('click', () => {
     state.activeProbe = 'black';
     document.getElementById('btn-select-black').classList.add('active-black');
+    document.getElementById('btn-select-black').setAttribute('aria-pressed', 'true');
     document.getElementById('btn-select-red').classList.remove('active-red');
+    document.getElementById('btn-select-red').setAttribute('aria-pressed', 'false');
   });
 
   document.getElementById('btn-power-toggle').addEventListener('click', () => {

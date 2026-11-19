@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=5" />
+  <link rel="stylesheet" href="css/styles.css?v=6" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -186,8 +186,8 @@
                 <span class="legend-item"><span class="dot dot-black"></span> Black: <strong id="legend-black-tp">TP3</strong></span>
                 <span class="probe-target-toggle" role="group" aria-label="Active probe to place on tap">
                   <span>Tap moves:</span>
-                  <button id="btn-select-red" class="chip active-red" type="button">Red (+)</button>
-                  <button id="btn-select-black" class="chip" type="button">Black (−)</button>
+                  <button id="btn-select-red" class="chip active-red" type="button" aria-pressed="true">Red (+)</button>
+                  <button id="btn-select-black" class="chip" type="button" aria-pressed="false">Black (−)</button>
                 </span>
               </div>
             </div>
@@ -537,6 +537,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js?v=5"></script>
+  <script type="module" src="js/main.js?v=6"></script>
 </body>
 </html>

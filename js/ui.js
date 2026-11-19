@@ -86,7 +86,7 @@ export function renderHome(save, cases) {
       .map(
         (e, i) => `
         <div class="lb-row">
-          <span>#${i + 1} ${e.name}</span>
+          <span>#${i + 1} ${e.name} <small class="case-item-meta">(${e.rank || "Apprentice"})</small></span>
           <strong>${e.score} pts</strong>
         </div>`
       )
@@ -96,6 +96,7 @@ export function renderHome(save, cases) {
 
 export function renderSchematic(level, state, onTapTestPoint) {
   const container = document.getElementById('schematic-container');
+  const flowClass = state.powerOn && state.solvedSuccess ? 'wire-flow-on' : '';
   const isLedLit =
     state.powerOn &&
     state.solvedSuccess &&
@@ -325,7 +326,7 @@ export function renderSchematic(level, state, onTapTestPoint) {
     .join('');
 
   container.innerHTML = `
-    <svg class="schematic-svg" viewBox="0 0 560 250" role="img" aria-label="${level.title} schematic">
+    <svg class="schematic-svg ${flowClass}" viewBox="0 0 560 250" role="img" aria-label="${level.title} schematic">
       ${boardSvg}
       ${tpSvg}
     </svg>
