@@ -1,5 +1,5 @@
 /**
- * FaultFinder DC Circuit Solver (Modified Nodal Analysis + Ideal Piecewise-Linear Diodes, NPN, Motor, Regulator)
+ * FaultFinder DC Circuit Solver (Modified Nodal Analysis + Ideal Piecewise-Linear Diodes, NPN, MOSFET, Op-Amp, Motor, Regulator)
  * Single source of truth for all voltage, resistance, continuity, and KVL/KCL checks.
  */
 
@@ -95,6 +95,17 @@ function getEffectiveComponent(comp, fault, faultActive) {
     return { ...comp, kind: 'npn', vbe: comp.vbe ?? 0.7, vceSat: comp.vceSat ?? 0.2, rceSat: comp.rceSat ?? 1.0 };
   }
 
+  if (comp.type === 'mosfet') {
+    if (fType === 'open' || fType === 'dead') return { ...comp, kind: 'dead_mosfet' };
+    if (fType === 'short') return { ...comp, kind: 'short_mosfet' };
+    return { ...comp, kind: 'mosfet', vth: comp.vth ?? 2.0, rdsOn: comp.rdsOn ?? 0.2 };
+  }
+
+  if (comp.type === 'opamp') {
+    if (fType === 'open' || fType === 'dead') return { ...comp, kind: 'dead_opamp' };
+    return { ...comp, kind: 'opamp' };
+  }
+
   if (comp.type === 'regulator') {
     if (fType === 'open' || fType === 'dead') return { ...comp, kind: 'dead_reg' };
     return { ...comp, kind: 'regulator', vout: comp.vout ?? 5.0 };
@@ -114,18 +125,24 @@ export function solveCircuit(circuit, options = {}) {
   const effComps = circuit.components.map((c) => getEffectiveComponent(c, circuit.fault, faultActive));
   const diodes = effComps.filter((c) => c.kind === 'led' || c.kind === 'diode' || c.kind === 'zener');
   const npns = effComps.filter((c) => c.kind === 'npn');
+  const mosfets = effComps.filter((c) => c.kind === 'mosfet');
+  const opamps = effComps.filter((c) => c.kind === 'opamp');
   const regs = effComps.filter((c) => c.kind === 'regulator');
   const vsources = effComps.filter((c) => c.kind === 'vsource');
 
   const diodeStates = new Map(diodes.map((d) => [d.id, 'off']));
   const npnStates = new Map(npns.map((q) => [q.id, { be: 'off', ce: 'off' }]));
+  const mosfetStates = new Map(mosfets.map((m) => [m.id, 'off']));
 
   let solution = null;
   let converged = false;
   let activeSources = [];
+  let activeOpamps = [];
 
   for (let iter = 0; iter < 40; iter += 1) {
     activeSources = [];
+    activeOpamps = powerOn ? opamps : [];
+
     if (powerOn && circuit.supply) {
       activeSources.push({
         id: circuit.supply.id || 'V1',
@@ -152,7 +169,7 @@ export function solveCircuit(circuit, options = {}) {
       if (st.be === 'on') activeSources.push({ id: `${q.id}_BE`, pos: q.nodes[0], neg: q.nodes[2], voltage: q.vbe });
     }
 
-    const dim = numV + activeSources.length;
+    const dim = numV + activeSources.length + activeOpamps.length;
     const A = Array.from({ length: dim }, () => new Array(dim).fill(0));
     const z = new Array(dim).fill(0);
 
@@ -203,8 +220,20 @@ export function solveCircuit(circuit, options = {}) {
         stampResistor(c.nodes[1], c.nodes[2], R_OPEN);
       } else if (c.kind === 'short_npn') {
         stampResistor(c.nodes[1], c.nodes[2], R_SHORT);
+      } else if (c.kind === 'mosfet') {
+        stampResistor(c.nodes[0], c.nodes[2], R_OPEN);
+        const st = mosfetStates.get(c.id);
+        stampResistor(c.nodes[1], c.nodes[2], st === 'on' ? c.rdsOn : R_OPEN);
+      } else if (c.kind === 'dead_mosfet') {
+        stampResistor(c.nodes[0], c.nodes[2], R_OPEN);
+        stampResistor(c.nodes[1], c.nodes[2], R_OPEN);
+      } else if (c.kind === 'short_mosfet') {
+        stampResistor(c.nodes[0], c.nodes[2], R_OPEN);
+        stampResistor(c.nodes[1], c.nodes[2], R_SHORT);
       } else if (c.kind === 'dead_reg') {
         stampResistor(c.nodes[1], c.nodes[2], R_OPEN);
+      } else if (c.kind === 'dead_opamp') {
+        stampResistor(c.nodes[2], ground, R_OPEN);
       }
     }
 
@@ -221,6 +250,17 @@ export function solveCircuit(circuit, options = {}) {
         A[row][ineg] -= 1;
       }
       z[row] = src.voltage;
+    });
+
+    activeOpamps.forEach((oa, k) => {
+      const row = numV + activeSources.length + k;
+      const iOut = varMap.get(oa.nodes[2]);
+      const iPos = varMap.get(oa.nodes[0]);
+      const iNeg = varMap.get(oa.nodes[1]);
+      if (iOut !== undefined) A[iOut][row] += 1;
+      if (iPos !== undefined) A[row][iPos] += 1;
+      if (iNeg !== undefined) A[row][iNeg] -= 1;
+      z[row] = 0;
     });
 
     solution = solveLinearSystem(A, z);
@@ -259,6 +299,16 @@ export function solveCircuit(circuit, options = {}) {
       const nextCe = nextBe === 'on' && vce >= q.vceSat - 1e-6 ? 'on' : 'off';
       if (nextBe !== st.be || nextCe !== st.ce) {
         npnStates.set(q.id, { be: nextBe, ce: nextCe });
+        changed = true;
+      }
+    }
+
+    for (const m of mosfets) {
+      const vgs = getV(m.nodes[0]) - getV(m.nodes[2]);
+      const prev = mosfetStates.get(m.id);
+      const next = powerOn && vgs > m.vth ? 'on' : 'off';
+      if (next !== prev) {
+        mosfetStates.set(m.id, next);
         changed = true;
       }
     }
@@ -315,6 +365,34 @@ export function solveCircuit(circuit, options = {}) {
         voltage: vc - ve,
         current: ic,
         terminalCurrents: { [c.nodes[0]]: ib, [c.nodes[1]]: ic, [c.nodes[2]]: -(ib + ic) },
+      };
+    } else if (c.kind === 'mosfet' || c.kind === 'dead_mosfet' || c.kind === 'short_mosfet') {
+      const vg = voltages[c.nodes[0]] ?? 0;
+      const vd = voltages[c.nodes[1]] ?? 0;
+      const vs = voltages[c.nodes[2]] ?? 0;
+      const ig = (vg - vs) / R_OPEN;
+      const rds = c.kind === 'short_mosfet' ? R_SHORT : c.kind === 'mosfet' && mosfetStates.get(c.id) === 'on' ? c.rdsOn : R_OPEN;
+      const id = (vd - vs) / rds;
+      branches[c.id] = {
+        voltage: vd - vs,
+        current: id,
+        terminalCurrents: { [c.nodes[0]]: ig, [c.nodes[1]]: id, [c.nodes[2]]: -(ig + id) },
+      };
+    } else if (c.kind === 'opamp') {
+      const idx = activeOpamps.findIndex((o) => o.id === c.id);
+      const iOut = idx >= 0 ? solution[numV + activeSources.length + idx] : 0;
+      branches[c.id] = {
+        voltage: voltages[c.nodes[2]] ?? 0,
+        current: -iOut,
+        terminalCurrents: { [c.nodes[0]]: 0, [c.nodes[1]]: 0, [c.nodes[2]]: iOut, [ground]: -iOut },
+      };
+    } else if (c.kind === 'dead_opamp') {
+      const vOut = voltages[c.nodes[2]] ?? 0;
+      const iOut = vOut / R_OPEN;
+      branches[c.id] = {
+        voltage: vOut,
+        current: iOut,
+        terminalCurrents: { [c.nodes[0]]: 0, [c.nodes[1]]: 0, [c.nodes[2]]: iOut, [ground]: -iOut },
       };
     } else if (c.kind === 'regulator') {
       const idx = activeSources.findIndex((s) => s.id === c.id);

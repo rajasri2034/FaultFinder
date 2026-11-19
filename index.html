@@ -133,7 +133,7 @@
         <article class="card">
           <div class="card-header-row">
             <h2>Case Library</h2>
-            <span class="badge">Cases 0–10</span>
+            <span class="badge">Cases 0–20</span>
           </div>
           <div id="home-case-list" class="case-list"></div>
         </article>
@@ -192,6 +192,46 @@
             </div>
 
             <div id="schematic-container" class="schematic-container" aria-label="Interactive Circuit Schematic"></div>
+          </section>
+
+          <section id="wb-scope-card" class="card scope-panel hidden">
+            <div class="card-header-row">
+              <h3>Bench Oscilloscope (CH1)</h3>
+              <div class="scope-readouts">
+                <span class="scope-chip" id="wb-scope-tp-badge">Probe: TP2</span>
+                <span class="scope-chip" id="wb-scope-vpp">Vpp: 0.00 V</span>
+                <span class="scope-chip" id="wb-scope-freq">Freq: 0 Hz</span>
+                <span class="scope-chip hidden" id="wb-scope-duty">Duty: --</span>
+              </div>
+            </div>
+            <div class="scope-canvas-wrap">
+              <canvas id="wb-scope-canvas" class="scope-canvas"></canvas>
+            </div>
+            <p id="wb-scope-desc" class="case-brief" style="margin-bottom: 10px;"></p>
+            <div class="scope-controls-grid">
+              <div class="scope-control-group">
+                <label class="field-label" for="wb-scope-vdiv">Volts / Div</label>
+                <select id="wb-scope-vdiv" class="field-select">
+                  <option value="1">1 V/div</option>
+                  <option value="2">2 V/div</option>
+                  <option value="5" selected>5 V/div</option>
+                  <option value="10">10 V/div</option>
+                </select>
+              </div>
+              <div class="scope-control-group">
+                <label class="field-label" for="wb-scope-tdiv">Time / Div</label>
+                <select id="wb-scope-tdiv" class="field-select">
+                  <option value="0.2">0.2 ms/div</option>
+                  <option value="1">1 ms/div</option>
+                  <option value="5" selected>5 ms/div</option>
+                  <option value="20">20 ms/div</option>
+                </select>
+              </div>
+              <div class="scope-control-group">
+                <span class="field-label">Capture</span>
+                <button id="btn-wb-scope-freeze" class="btn btn-secondary btn-block" type="button">Freeze</button>
+              </div>
+            </div>
           </section>
 
           <section class="card log-card">
@@ -468,6 +508,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js?v=3"></script>
+  <script type="module" src="js/main.js?v=4"></script>
 </body>
 </html>

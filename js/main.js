@@ -1,5 +1,5 @@
 /**
- * FaultFinder Main Application Controller & Screen Router (Stage 1 + Stage 2 + Stage 3).
+ * CIRCUIT SLEUTH Main Application Controller & Screen Router (Stage 1 + Stage 2 + Stage 3 + Stage 4).
  */
 
 import {
@@ -11,11 +11,11 @@ import {
   takeMeasurement,
 } from './engine.js';
 import { upsertLocal } from './leaderboard.js';
-import { FAULT_LABELS, FAULT_TYPES, getCase, listCases } from './levels.js';
+import { FAULT_LABELS, FAULT_TYPES, getCase, listCases } from './levels.js?v=4';
 import { getMentorHint } from './mentor.js';
 import { generateWaveform, measureWaveform, OscilloscopeView, SCOPE_LAB } from './scope.js?v=3';
 import { loadSave, writeSave } from './storage.js';
-import { renderHome, renderMeasurementsLog, renderSchematic } from './ui.js?v=3';
+import { renderHome, renderMeasurementsLog, renderSchematic } from './ui.js?v=4';
 
 const MODE_MAP = {
   DCV: 'voltage',
@@ -45,6 +45,7 @@ const state = {
   scopeTp: 'TP2',
   scopeFaulty: true,
   scopeView: null,
+  wbScopeView: null,
 };
 
 function playTone(freq, durationMs = 70) {
@@ -76,6 +77,47 @@ function showScreen(screenId) {
     if (screenId === 'scope-lab') state.scopeView.start();
     else state.scopeView.stop();
   }
+  if (state.wbScopeView) {
+    if (screenId === 'workbench' && state.currentLevel && state.currentLevel.hasScope) state.wbScopeView.start();
+    else state.wbScopeView.stop();
+  }
+}
+
+function updateWorkbenchScope() {
+  const card = document.getElementById('wb-scope-card');
+  const lvl = state.currentLevel;
+  if (!lvl || !lvl.hasScope || !lvl.scope) {
+    card.classList.add('hidden');
+    if (state.wbScopeView) state.wbScopeView.stop();
+    return;
+  }
+  card.classList.remove('hidden');
+  if (!state.wbScopeView) {
+    state.wbScopeView = new OscilloscopeView(document.getElementById('wb-scope-canvas'));
+  }
+
+  const bank = state.solvedSuccess ? lvl.scope.healthyWaveforms : lvl.scope.faultyWaveforms;
+  const tp = state.redTp;
+  const model = !state.powerOn
+    ? { type: 'zero', amplitude: 0, frequency: 0, offset: 0, label: 'Supply OFF (0.00 V)' }
+    : bank[tp] || bank[lvl.scope.defaultTp] || { type: 'zero', amplitude: 0, frequency: 0, offset: 0, label: '0.00 V' };
+
+  const stats = measureWaveform(generateWaveform(model, 2, 100));
+  document.getElementById('wb-scope-tp-badge').textContent = `Probe: ${tp}`;
+  document.getElementById('wb-scope-vpp').textContent = `Vpp: ${stats.vpp.toFixed(2)} V`;
+  document.getElementById('wb-scope-freq').textContent = `Freq: ${stats.frequency} Hz`;
+  document.getElementById('wb-scope-desc').textContent = `${tp}: ${model.label || ''}`;
+
+  const dutyEl = document.getElementById('wb-scope-duty');
+  if (stats.duty !== null) {
+    dutyEl.textContent = `Duty: ${Math.round(stats.duty * 100)}%`;
+    dutyEl.classList.remove('hidden');
+  } else {
+    dutyEl.classList.add('hidden');
+  }
+
+  state.wbScopeView.setModel(model);
+  state.wbScopeView.start();
 }
 
 function updateScopeLab() {
@@ -245,6 +287,7 @@ function startCase(caseNumber) {
   renderMeasurementsLog(state.measurements);
   updateHud();
   showScreen('workbench');
+  updateWorkbenchScope();
 
   state.timerHandle = window.setInterval(() => {
     state.elapsedSeconds += 1;
@@ -262,6 +305,7 @@ function handleTapTestPoint(tpId) {
   }
 
   renderSchematic(state.currentLevel, state, handleTapTestPoint);
+  updateWorkbenchScope();
   triggerMeasurement();
 }
 
@@ -297,6 +341,7 @@ function handleDiagnosisSubmit(ev) {
     state.powerOn = true;
     updatePowerUi();
     renderSchematic(lvl, state, handleTapTestPoint);
+    updateWorkbenchScope();
     playTone(980, 140);
 
     const scoreRes = computeScore({
@@ -426,6 +471,20 @@ function bindEvents() {
     ev.currentTarget.textContent = state.scopeView.frozen ? 'Resume' : 'Freeze';
   });
 
+  document.getElementById('wb-scope-vdiv').addEventListener('change', (ev) => {
+    if (state.wbScopeView) state.wbScopeView.voltsPerDiv = Number(ev.target.value);
+  });
+
+  document.getElementById('wb-scope-tdiv').addEventListener('change', (ev) => {
+    if (state.wbScopeView) state.wbScopeView.timePerDivMs = Number(ev.target.value);
+  });
+
+  document.getElementById('btn-wb-scope-freeze').addEventListener('click', (ev) => {
+    if (!state.wbScopeView) return;
+    state.wbScopeView.frozen = !state.wbScopeView.frozen;
+    ev.currentTarget.textContent = state.wbScopeView.frozen ? 'Resume' : 'Freeze';
+  });
+
   document.getElementById('home-case-list').addEventListener('click', (ev) => {
     const btn = ev.target.closest('.case-item-btn');
     if (btn && !btn.disabled) {
@@ -449,6 +508,7 @@ function bindEvents() {
     state.powerOn = !state.powerOn;
     updatePowerUi();
     renderSchematic(state.currentLevel, state, handleTapTestPoint);
+    updateWorkbenchScope();
     triggerMeasurement();
   });
 

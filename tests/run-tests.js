@@ -1,5 +1,5 @@
 /**
- * FaultFinder automated tests. Run: node tests/run-tests.js
+ * CIRCUIT SLEUTH automated tests. Run: node tests/run-tests.js
  * Browser: open index.html?test=1
  */
 
@@ -23,7 +23,19 @@ const FIXED_FAULTS = {
   8: { component: 'U1', type: 'dead' },
   9: { component: 'R3', type: 'wrong-value' },
   10: { component: 'R2', type: 'open' },
+  11: { component: 'R_PU', type: 'open' },
+  12: { component: 'D1', type: 'open' },
+  13: { component: 'C1', type: 'open' },
+  14: { component: 'DZ1', type: 'open' },
+  15: { component: 'C1', type: 'short' },
+  16: { component: 'R2', type: 'open' },
+  17: { component: 'R_f', type: 'wrong-value' },
+  18: { component: 'Q3', type: 'dead' },
+  19: { component: 'R_G', type: 'open' },
+  20: { component: 'Q1', type: 'dead' },
 };
+
+const SCOPE_CASE_NUMBERS = [12, 13, 15, 16, 17, 19, 20];
 
 const results = [];
 
@@ -90,7 +102,7 @@ export async function runAllTests(options = {}) {
     cases.forEach((entry, index) => {
       assert(entry.number === index, `case number ${entry.number} is out of sequence`);
     });
-    assert(cases.length === 11, `Expected 11 cases (0-10), got ${cases.length}`);
+    assert(cases.length === 21, `Expected 21 cases (0-20), got ${cases.length}`);
   });
 
   await run('unlock keeps the tutorial skippable', () => {
@@ -98,6 +110,7 @@ export async function runAllTests(options = {}) {
     assert(caseUnlocked(1, {}), 'case 1 locked');
     assert(caseUnlocked(2, {}) === false, 'case 2 unlocked with nothing solved');
     assert(caseUnlocked(2, { 1: true }) === true, 'case 2 stayed locked after case 1');
+    assert(caseUnlocked(20, { 19: true }) === true, 'boss case stayed locked after case 19');
   });
 
   await run('exactly one fixed fault per case', () => {
@@ -168,6 +181,24 @@ export async function runAllTests(options = {}) {
         }
       }
     }
+  });
+
+  await run('scope cases define waveforms for at least 2 probe points', () => {
+    for (const num of SCOPE_CASE_NUMBERS) {
+      const entry = getCase(num);
+      assert(entry.hasScope === true && entry.scope, `${entry.id} missing scope config`);
+      const hKeys = Object.keys(entry.scope.healthyWaveforms || {});
+      const fKeys = Object.keys(entry.scope.faultyWaveforms || {});
+      assert(hKeys.length >= 2 && fKeys.length >= 2, `${entry.id} needs >= 2 scope probe points`);
+      for (const tp of fKeys) {
+        const read = measureWaveform(generateWaveform(entry.scope.faultyWaveforms[tp], 2, 100));
+        assert(Number.isFinite(read.vpp) && Number.isFinite(read.frequency), `${entry.id} invalid waveform at ${tp}`);
+      }
+    }
+    const boss = getCase(20);
+    const bossGate = measureWaveform(generateWaveform(boss.scope.faultyWaveforms.TP3, 2, 100));
+    const bossDrain = measureWaveform(generateWaveform(boss.scope.faultyWaveforms.TP4, 2, 100));
+    assert(bossGate.vpp > 4.5 && bossGate.frequency === 1000 && bossDrain.vpp === 0, 'boss case scope symptom unclear');
   });
 
   await run('worked example: 12 V, 1 kΩ, red LED 2 V, 10 mA', () => {
