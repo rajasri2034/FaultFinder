@@ -1,310 +1,248 @@
-# 🔎 CIRCUIT SLEUTH
-
-### The Electronics Detective
-
-> **Every circuit has a secret. Find the fault. Prove it with measurements.**
-
-\<p align="center">
-&#x20; \<a href="[https://circuit-sleuth.embarko.app/](https://circuit-sleuth.embarko.app/)">
-&#x20;   \<img src="[https://img.shields.io/badge/🚀\_LAUNCH_APP-LIVE-6D28D2?style=for-the-badge](https://img.shields.io/badge/🚀_LAUNCH_APP-LIVE-6D28D2?style=for-the-badge)" alt="Launch CIRCUIT SLEUTH"/>
-&#x20; \</a>
-&#x20; \<img src="[https://img.shields.io/badge/CASES-21-15803D?style=for-the-badge](https://img.shields.io/badge/CASES-21-15803D?style=for-the-badge)" alt="21 Cases"/>
-&#x20; \<img src="[https://img.shields.io/badge/PLATFORM-WEB-1C1D1F?style=for-the-badge](https://img.shields.io/badge/PLATFORM-WEB-1C1D1F?style=for-the-badge)" alt="Web Application"/>
-&#x20; \<img src="[https://img.shields.io/badge/HOSTED_ON-EMBARKO-A435F0?style=for-the-badge](https://img.shields.io/badge/HOSTED_ON-EMBARKO-A435F0?style=for-the-badge)" alt="Hosted on Embarko"/>
-\</p>
-
-\<p align="center">
-&#x20; \<strong>Don't guess the fault. Investigate it.\</strong>
-\</p>
-
+<div align="center">
+⚡ CIRCUIT SLEUTH – The Electronics Detective
+"Every circuit has a secret. Find the fault. Prove it with measurements."
+https://circuit-sleuth.embarko.app/
+#technology-stack
+#core-features
+#automated-testing
+#installation--local-execution
+An interactive, physics-driven circuit troubleshooting simulator powered by a real Modified Nodal Analysis (MNA) solver, virtual DMM, and live oscilloscope.
+🚀 Play Live · 🔬 Virtual Lab · 🧭 How to Play · 🏗️ Architecture · 🧪 Tests
+</div>
 ---
-
-## 🌐 Experience CIRCUIT SLEUTH
-
-[**▶ OPEN THE LIVE APPLICATION**](https://circuit-sleuth.embarko.app/)
-
-CIRCUIT SLEUTH is an interactive electronics troubleshooting simulator that turns circuit diagnosis into a hands-on investigation experience.
-
-Step into the role of an electronics detective. Examine circuits, take measurements, analyse waveforms, uncover hidden faults and prove your diagnosis using virtual instruments.
-
-Instead of simply revealing the answer, CIRCUIT SLEUTH encourages you to think like an engineer.
-
+📑 Table of Contents
+Project Introduction
+Problem Statement & Motivation
+What Makes CIRCUIT SLEUTH Different
+Core Features
+How to Play
+Virtual Laboratory
+Investigation Workflow
+Visual Identity & Design System
+Technology Stack
+Project Folder Architecture
+Installation & Local Execution
+Automated Testing
+Deployment & Live Application
+Embarko Student Challenge
+Future Development Possibilities
+Project Creator
 ---
-
-## 🕵️ What Makes It Different?
-
-Most learning experiences explain how circuits work.
-
-**CIRCUIT SLEUTH challenges you to discover why they don't.**
-
-You are given a faulty circuit. Your mission is to investigate it using measurements, understand its behaviour and identify the component or connection responsible for the fault.
-
-### ⚡ Core Features
-
-| Feature                   | Description                                                             |
-| ------------------------- | ----------------------------------------------------------------------- |
-| 🔬 21 Investigation Cases | Progress through increasingly challenging circuit scenarios.            |
-| 🔧 Virtual Multimeter     | Investigate circuits using DC voltage, resistance and continuity modes. |
-| 📈 Oscilloscope Lab       | Explore waveforms and analyse signal behaviour.                         |
-| 🧠 Mentor System          | Receive progressive hints based on your investigation.                  |
-| 🎯 Diagnosis Engine       | Use your measurements to identify the underlying fault.                 |
-| 🏆 XP & Ranking           | Earn experience and progress through ranks.                             |
-| ⭐ Scoring System          | Get rewarded for accurate diagnosis and efficient investigation.        |
-| 📋 Leaderboard            | Track performance through the available leaderboard system.             |
-| 💾 Progress Tracking      | Continue your investigation with saved progress.                        |
-| 📱 Responsive Interface   | Investigate circuits across desktop and mobile screens.                 |
-
+Project Introduction
+CIRCUIT SLEUTH – The Electronics Detective is a browser-based engineering investigation simulator designed to build real-world hardware debugging intuition. Across 21 progressive cases (Cases 0–20)—culminating in a multi-stage Mechatronics Controller Board boss case—players inspect faulty schematics, manage bench power safely, probe live test points with a virtual multimeter and oscilloscope, and isolate the exact defective component using measured evidence.
+Unlike static multiple-choice quizzes, every voltage, resistance, continuity beep, and oscilloscope trace is computed dynamically from the circuit topology and active fault model.
 ---
-
-## 🎮 How to Play
-
-\<details> \<summary>\<strong>01 — Start Your Investigation\</strong>\</summary>
-
-Launch the application and enter the investigation workbench.
-
-Choose an available case and inspect the circuit carefully.
-
-\</details>
-
-\<details> \<summary>\<strong>02 — Investigate the Circuit\</strong>\</summary>
-
-Examine the circuit diagram and identify important test points.
-
-Use the virtual multimeter to take measurements.
-
-Available measurement modes:
-
-- DC Voltage
-- Resistance
-- Continuity
-
-\</details>
-
-\<details>
-\<summary>\<strong>03 — Analyse the Evidence\</strong>\</summary>
-
-Compare your measurements with expected circuit behaviour.
-
-Use the oscilloscope where applicable to inspect waveform characteristics.
-
-Need guidance? Use the Mentor system to receive progressive hints.
-
-\</details>
-
-\<details>
-\<summary>\<strong>04 — Identify the Fault\</strong>\</summary>
-
-Use your collected evidence to determine the actual circuit fault.
-
-Your diagnosis should be supported by measurements, not random guessing.
-
-\</details>
-
-\<details>
-\<summary>\<strong>05 — Earn XP and Progress\</strong>\</summary>
-
-Complete investigations, earn points and improve your rank.
-
-Challenge yourself with increasingly difficult cases.
-
-\</details>
-
+Problem Statement & Motivation
+The Gap in Traditional Electronics Learning
+Most introductory electronics and mechatronics courses focus heavily on ideal textbook equations while offering limited hands-on fault-finding practice before students enter a physical lab. As a result, learners often struggle with practical bench habits:
+Knowing which node to probe first when an indicator LED or motor stage goes dead.
+Remembering to switch bench power OFF before measuring resistance or continuity.
+Interpreting time-domain waveforms (ripple, half-wave dropout, PWM duty cycle, op-amp gain loss) alongside DC multimeter readings.
+The Goal
+CIRCUIT SLEUTH bridges theory and benchtop troubleshooting by turning circuit analysis into an interactive detective workflow—rewarding disciplined, evidence-based measurements over guesswork.
 ---
-
-## 🧪 Virtual Laboratory
-
-### 1. Virtual Multimeter
-
-A simulated digital multimeter for investigating circuit behaviour.
-
-- DC voltage measurements.
-- Resistance measurements.
-- Continuity testing.
-- Probe placement at circuit test points.
-- Measurement history and inspection.
-
-### 2. Bench Oscilloscope
-
-Explore electrical signals through an interactive oscilloscope interface.
-
-- Inspect waveform behaviour.
-- Analyse signal characteristics.
-- Understand circuit output.
-- Use waveform evidence during investigations.
-
-### 3. Intelligent Mentor
-
-The Mentor provides progressive guidance to help players reason through a circuit.
-
-Rather than immediately revealing the answer, it encourages evidence-based troubleshooting.
-
+What Makes CIRCUIT SLEUTH Different
+Capability	Typical Electronics Quiz	CIRCUIT SLEUTH
+Electrical Behavior	Static text or hardcoded answers	Real Modified Nodal Analysis (MNA) DC & waveform solver (`solver.js`)
+Measurement Tools	None or pre-printed numbers	Interactive FF-8800 PRO DMM (`V`, `Ω`, `Continuity`) + Oscilloscope (CH1)
+Bench Safety Rules	Ignored	Enforces Power OFF before `Ω` / `Continuity` (`ERR` + `-200 pts` penalty if live)
+Hint System	Generic spoilers	3-level measurement-aware Mentor (`mentor.js`) that never reads the answer key
+Portability	Heavy desktop simulators or API keys	Zero-build static ES Modules—runs offline in any modern browser
 ---
-
-## 🧩 Investigation Journey
-
+Core Features
+Feature	Description
+21 Progressive Cases (0–20)	Covers resistive dividers, LED/diode circuits, BJTs, Zener regulators, RC filters, 555 astable timers, Op-Amps, MOSFET PWM motor control, and Boss Case #20.
+Computed MNA Circuit Solver	Solves nodal voltages and branch resistances mathematically across resistors, voltage sources, diodes, Zeners, BJTs, MOSFETs, and Op-Amps.
+Workbench & Lab Oscilloscope	Live CH1 time-domain waveform rendering with `Vpp`, frequency (`Hz`), and duty-cycle (`%`) readouts on 7 scope cases (`#12, #13, #15, #16, #17, #19, #20`) plus a standalone Oscilloscope Lab.
+3-Level Measurement Mentor	Analyzes your actual measurement log (live vs. power-off checks, `OL` or near-zero readings) across 3 escalating hint tiers without spoiling the fault.
+Scoring, Streaks & Star Ratings	Awards base points (`1000`), efficiency bonuses (`≤ 4` measurements), no-hint bonuses (`+200`), streak multipliers (up to `1.25×`), and `1★–3★` ratings.
+XP Progression & Rank Ladder	Tracks persistent XP across 5 ranks: Apprentice → Technician → Engineer → Senior Engineer → Master Detective.
+Offline-Safe Leaderboard & Share	Sanitized local leaderboard (`≤ 16` chars, HTML stripped), optional consent-gated online hook, and `navigator.share` / clipboard share card.
+Responsive & Accessible UI	Mobile-first layout (`360px`–desktop), `44×44 px` touch targets, `:focus-visible` outlines, `prefers-reduced-motion` support, and optional muted-by-default Web Audio feedback.
+<details>
+<summary><strong>📋 Click to expand: Full Case Progression &amp; Rank Thresholds</strong></summary>
+Rank Progression (`js/engine.js`)
+Rank Title	XP Required
+Apprentice	`0 XP`
+Technician	`2,000 XP`
+Engineer	`5,000 XP`
+Senior Engineer	`10,000 XP`
+Master Detective	`20,000 XP`
+Oscilloscope-Enabled Cases (`js/levels.js`)
+Case #12: Half-Wave Rectifier (Scope)
+Case #13: Rectifier + Filter Cap (Scope)
+Case #15: RC Low-Pass Filter (Scope)
+Case #16: 555 Astable Blinker (Scope)
+Case #17: Op-Amp Non-Inverting Amp (Scope)
+Case #19: PWM Motor Speed Control (Scope)
+Case #20 (Boss): Mechatronics Controller Board (Scope + DMM)
+</details>
+---
+How to Play
+Inspect & Power: Read the symptom report on the case card and check whether the Bench Supply is `POWER ON` or `POWER OFF`.
+Probe Test Points: Select Red (+) and Black (−) probes on schematic test points (`TP1`, `TP2`, `TP3`, …) to log readings on the virtual multimeter.
+Follow Bench Safety: Use `DC Volts` with `POWER ON`, and always switch `POWER OFF` before selecting `Resistance (Ω)` or `Continuity`.
+Analyze Waveforms (Scope Cases): On AC, rectifier, timer, or PWM boards, inspect the Oscilloscope (CH1) trace, `Vpp`, `Freq`, and duty cycle.
+Submit Your Diagnosis: Pick the defective component and fault type (`Open circuit`, `Short circuit`, `Dead / non-conducting`, or `Wrong value`) and prove your case.
+---
+Virtual Laboratory
+<details open>
+<summary><strong>🔌 1. Virtual Multimeter (FF-8800 PRO DMM)</strong></summary>
+DC Volts (`V`): Measures node-to-node potential difference (`formatVoltage`) with bench supply active.
+Resistance (`Ω`): Computes in-circuit resistance (`OL`, `Ω`, `kΩ`, `MΩ`) via passive MNA excitation when `POWER OFF`.
+Continuity (`BEEP`): Checks low-resistance paths and triggers audible/visual continuity feedback when `POWER OFF`.
+Safety Interlock: Attempting `Ω` or `Continuity` while `POWER ON` displays `ERR`, logs a warning, and applies a `-200 pts` safety penalty.
+</details>
+<details>
+<summary><strong>📈 2. Oscilloscope (CH1) &amp; Scope Lab</strong></summary>
+Integrated directly into the workbench (`#wb-scope-card`) for scope-enabled cases and accessible anytime from the home screen via Oscilloscope Lab.
+Plots real-time SVG waveforms (sine, half-wave rectified, capacitor-filtered ripple, square/PWM, and attenuated RC signals) with computed `Vpp`, `Freq (Hz)`, and duty-cycle metrics.
+</details>
+<details>
+<summary><strong>🧠 3. Measurement-Aware Mentor System</strong></summary>
+Implemented in `js/mentor.js` via `getMentorHint(level, measurements, hintLevel)` returning a `Promise<string>`.
+Zero Answer-Key Leakage: Never reads `level.fault` or `level.expected`.
+3 Escalating Levels:
+Level 1: Interprets your latest measurement (or prompts an initial `DC V` check if no readings exist).
+Level 2: Checks whether passive `Ω` verification is missing or highlights `OL` / near-`0 Ω` anomalies.
+Level 3: Guides component isolation between the last healthy node and first faulty node (`-150 pts` per hint).
+</details>
+<details>
+<summary><strong>⚖️ 4. Diagnosis, Scoring &amp; Game-Over System</strong></summary>
+Score Formula (`computeScore`): `1000` base + up to `300` efficiency bonus (`≤ 4` readings) + `200` no-hint bonus − penalties (`-150/hint`, `-200/live-Ω`, `-300/wrong attempt`, extra readings/time) × streak multiplier (up to `1.25×`).
+Stars: `★★★` (`≥ 1300`), `★★☆` (`≥ 900`), `★☆☆` (`< 900`).
+Duplicate-XP Guard (`awardXp`): Replaying a solved case only awards the positive delta above your previous best score.
+Game Over & Restart: Running out of lives opens the Game Over summary modal (`#modal-gameover`); restarting resets the active run while preserving persistent XP, solved cases, and leaderboard history.
+</details>
+---
+Investigation Workflow
 ```mermaid
 flowchart TD
-    A["🔎 Select a Case"] --> B["⚡ Inspect the Circuit"]
-    B --> C["🔧 Take Measurements"]
-    C --> D["📈 Analyse Evidence"]
-    D --> E{"Fault Identified?"}
-    E -->|Not yet| F["🧠 Request a Mentor Hint"]
-    F --> C
-    E -->|Yes| G["🎯 Submit Diagnosis"]
-    G --> H["🏆 Earn XP & Score"]
-    H --> I["🚀 Unlock Next Investigation"]
+    A[Select Case 0–20] --> B[Inspect Symptom & Bench Supply]
+    B --> C{Measurement Mode?}
+    C -->|DC Volts| D[Ensure POWER ON & Probe TP+ / TP-]
+    C -->|Resistance / Continuity| E{Is POWER OFF?}
+    E -->|No| F[ERR Warning · -200 pts Penalty]
+    F --> B
+    E -->|Yes| G[Read Ω / BEEP & Log Evidence]
+    C -->|Oscilloscope Case| H[Inspect CH1 Waveform · Vpp · Freq]
+    D --> I[Analyze Logged Readings]
+    G --> I
+    H --> I
+    I --> J{Need Guidance?}
+    J -->|Yes| K[Ask Mentor · Level 1 → 3]
+    K --> I
+    J -->|No| L[Select Component & Fault Type]
+    L --> M{Diagnosis Correct?}
+    M -->|No| N[-300 pts · Lose 1 Life]
+    N --> I
+    M -->|Yes| O[Compute Score · Stars · Award XP Delta]
 ```
-
 ---
-
-## 🛠️ Built With
-
-| Technology            | Purpose                                    |
-| --------------------- | ------------------------------------------ |
-| HTML5                 | Application structure                      |
-| CSS3                  | Styling, responsive layouts and animations |
-| JavaScript            | Application logic and interactions         |
-| JavaScript ES Modules | Modular application architecture           |
-| SVG                   | Interactive circuit diagrams               |
-| Canvas                | Oscilloscope visualisation                 |
-| Local Storage         | Persistent local progress and settings     |
-| Python HTTP Server    | Local development server                   |
-| Embarko               | Public static application hosting          |
-
+Visual Identity & Design System
+CIRCUIT SLEUTH uses a warm, tactile editorial hardware-lab palette defined in `css/styles.css`:
+Role	Colour	Hex	Usage
+Page Canvas	Warm Beige	`#EEDAC3`	Outer page background
+Card Surface	Crisp White	`#FFFFFF`	Case cards, workbench panels, leaderboard
+Inner Surface	Warm Ivory	`#FAF6F0`	Badges, dot-grid schematic canvas, log rows
+Borders	Warm Sand	`#DEC9B0`	Subtle card and control outlines
+Hero & Headings	Deep Charcoal	`#1C1D1F`	Headings, instrument labels, dark DMM/scope bezels
+Body Copy	Muted Slate	`#595C73`	Supporting descriptions and secondary labels
+Primary Accent	Brand Violet	`#6D28D2`	Primary CTAs, active modes, key badges
+Highlight	Bright Violet	`#A435F0`	Hero emphasis, XP progress bar
+Secondary Highlight	Lavender	`#D2A8FF`	Oscilloscope trace, subtle accents
+Status: OK	Emerald Green	`#15803D`	`POWER ON` indicator, solved & rank-up states
+Status: Fault	Warm Coral Red	`#E11D48`	Red `(+)` probe, alerts, lives indicator
 ---
-
-## 💻 Run Locally
-
-Want to explore the source code or contribute?
-
-### Prerequisites
-
-- Git
-- Python 3
-- A modern web browser
-- VS Code (recommended)
-
-### 1. Clone the repository
-
-```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+Technology Stack
+Layer	Technology	Purpose
+Markup	Semantic HTML5 (`index.html`)	Accessible single-page app shell, modals, SVG inline favicon
+Styling	CSS3 Custom Properties (`css/styles.css`)	Editorial theme, responsive grid (`360px`–desktop), reduced-motion rules
+Logic & Solver	Vanilla JavaScript ES Modules (`js/*.js`)	MNA circuit solver, DMM, oscilloscope, mentor, scoring, leaderboard
+Graphics	Inline SVG (`js/ui.js`, `js/scope.js`)	Crisp schematics, clay-style component icons, live oscilloscope traces
+Persistence	Browser `localStorage` (`faultfinder-save-v1`)	Offline save state for XP, best scores, solved cases, sound preference, and leaderboard
+Testing	Node.js ESM Test Runner (`tests/run-tests.js`)	Automated verification of solver physics, mentor, scoring, and storage safety
+---
+Project Folder Architecture
+> **Note:** The local repository folder is named `FaultFinder`, while the public product is **CIRCUIT SLEUTH**.
+```text
+FaultFinder/
+├── index.html          # Root HTML entry point (modals, workbench, home, scope lab)
+├── package.json        # Enables ES module execution for local Node tests
+├── README.md           # Project documentation
+├── css/
+│   └── styles.css      # Official palette, responsive layout, clay-style UI & animations
+├── js/
+│   ├── main.js         # Application state, event wiring, sound effects, UI orchestration
+│   ├── ui.js           # Inline SVG schematics, component icons, case cards, DOM helpers
+│   ├── solver.js       # Modified Nodal Analysis (MNA) DC & passive resistance engine
+│   ├── engine.js       # Virtual DMM, scoring, XP/ranks, duplicate-XP guard, share card
+│   ├── levels.js       # 21 circuit cases (Cases 0–20) with topologies, faults, and hints
+│   ├── scope.js        # Oscilloscope waveform synthesis, Vpp/frequency/duty calculations
+│   ├── mentor.js       # 3-level measurement-aware offline hint engine
+│   ├── leaderboard.js  # Sanitized local leaderboard & opt-in online upload handler
+│   └── storage.js      # Fault-tolerant localStorage persistence (faultfinder-save-v1)
+└── tests/
+    └── run-tests.js    # 21 automated unit & integration tests (also runnable via ?test=1)
 ```
-
-### 2. Open the project folder
-
+---
+Installation & Local Execution
+No build step, bundler, or API key is required. Serve the `FaultFinder` root over any static HTTP server (needed for ES Modules):
 ```bash
+# 1. Clone the repository
+git clone <your-github-repo-url>
 cd FaultFinder
+
+# 2. Start a local static server (choose any one)
+npx serve . -p 8080
+# OR using Python 3:
+python3 -m http.server 8080
 ```
-
-### 3. Start the local server
-
+Then open `http://localhost:8080` in your browser.
+---
+Automated Testing
+The project includes an automated test suite in `tests/run-tests.js` covering solver accuracy (KCL residuals, zero overrides), scope waveform math, 3-level mentor behavior, scoring/XP/streak rules, `localStorage` failure safety, and leaderboard sanitization.
+Run via Node.js (CLI)
 ```bash
-python -m http.server 8080
+node tests/run-tests.js
 ```
-
-### 4. Open the application
-
-Visit:
-
-```text
-http://localhost:8080/
-```
-
-### 5. Run automated verification
-
-Visit:
-
-```text
-http://localhost:8080/?test=1
-```
-
-The verification interface runs the project's automated checks.
-
+Verified output on the current codebase:
+`21 passed, 0 failed`
+`Overrides: none`
+Run in Browser
+Append `?test=1` to your local URL (e.g., `http://localhost:8080/?test=1`) to run the suite directly in the browser console/UI. (Hidden on the normal `/` route.)
+<details>
+<summary><strong>✅ Verification Checklist Evidenced in Repository &amp; Live Check</strong></summary>
+[x] MNA circuit solver runs without hardcoded answer overrides (`Overrides: none`)
+[x] All 21 cases (Cases 0–20) and Boss Case #20 (`Q1` fault) defined in `js/levels.js`
+[x] 3-level measurement-aware mentor returns a `Promise` without reading `level.fault`
+[x] Scoring, penalties, streak multiplier, rank progression, and duplicate-XP guard verified
+[x] `localStorage` fallback and leaderboard XSS/length sanitization verified (`21/21` passing)
+[x] Live deployment verified at `https://circuit-sleuth.embarko.app/` (app load, Case #0 completion, Oscilloscope Lab rendering, and refresh persistence)
+</details>
 ---
-
-## 🏗️ Project Architecture
-
-CIRCUIT SLEUTH uses a modular, browser-based architecture.
-
-- **Presentation Layer:** HTML and CSS interfaces.
-- **Interaction Layer:** JavaScript event handling and user interactions.
-- **Simulation Layer:** Circuit behaviour and measurement logic.
-- **Instrumentation Layer:** Virtual multimeter and oscilloscope.
-- **Learning Layer:** Mentor, scoring and progression.
-- **Persistence Layer:** Saved progress and leaderboard-related functionality.
-
-The application is designed to run as a static website without requiring a conventional backend server for its core investigation experience.
-
+Deployment & Live Application
+Live URL: https://circuit-sleuth.embarko.app/
+Hosting: Deployed on Embarko as a zero-build static web application (`index.html`, `css/`, `js/` at deployment root).
+Client-Side Persistence: Progress is stored per-browser in `localStorage` (`faultfinder-save-v1`) so the app works offline with no account or backend database required.
 ---
-
-## 🌍 Live Deployment
-
-\<p align="center">
-&#x20; \<a href="[https://circuit-sleuth.embarko.app/](https://circuit-sleuth.embarko.app/)">
-&#x20;   \<img src="[https://img.shields.io/badge/OPEN_CIRCUIT_SLEUTH-6D28D2?style=for-the-badge&logo=googlechrome&logoColor=white](https://img.shields.io/badge/OPEN_CIRCUIT_SLEUTH-6D28D2?style=for-the-badge\&logo=googlechrome\&logoColor=white)" alt="Open live application"/>
-&#x20; \</a>
-\</p>
-
-CIRCUIT SLEUTH is deployed as a static web application using **Embarko**.
-
-**Live URL:** [https://circuit-sleuth.embarko.app/](https://circuit-sleuth.embarko.app/)
-
+Embarko Student Challenge
+Built for the Embarko Student Challenge as a lightweight, zero-dependency educational engineering tool:
+Zero-friction access: No signup, no API keys, and no installation needed—learners open the link and start probing circuits immediately.
+Practical STEM focus: Reinforces safe benchtop habits, schematic reading, DMM probing, and oscilloscope waveform interpretation.
 ---
-
-## 🎓 Embarko Student Challenge
-
-Built as an AI-assisted application project for the Embarko Student Challenge.
-
-The project explores how interactive simulation can make electronics troubleshooting more engaging, practical and accessible.
-
-**Challenge hashtag:** `#DeployWithEmbarko`
-
+Future Development Possibilities
+Interactive Schematic Editor: Allow instructors and students to design and share custom faulted circuits.
+AC Small-Signal & Bode Plotting: Expand `scope.js` and `solver.js` with frequency-sweep magnitude/phase plots.
+Dual-Channel (CH1 + CH2) Scope: Compare input and output waveforms simultaneously with trigger controls.
+Optional Cloud Sync Backend: Connect `leaderboard.js` (`API_URL`) to a lightweight consented backend for classroom challenges.
 ---
-
-## 💡 Why I Built This
-
-Electronics students often learn circuit theory through equations, diagrams and textbooks. However, understanding how to diagnose a real circuit fault requires a different kind of thinking.
-
-I wanted to create an experience where students could investigate circuit failures, experiment with virtual instruments, analyse evidence and develop systematic troubleshooting skills.
-
-That idea became **CIRCUIT SLEUTH**.
-
+Project Creator
+Creator: RAJASRI S
+Degree: B.E. Mechatronics Engineering
+Project: CIRCUIT SLEUTH – The Electronics Detective (`FaultFinder`)
 ---
-
-## 🚀 Future Possibilities
-
-Potential directions for future development:
-
-- More advanced analogue and digital circuit investigations.
-- Additional fault scenarios.
-- More realistic instrument simulations.
-- Expanded learning and assessment experiences.
-- New interactive electronics laboratories.
-
----
-
-## 👩‍💻 Project Creator
-
-**RAJASRI S**
-
-B.E. Mechatronics Engineering
-Electronics | Robotics | Automation | Technology
-
----
-
-\<p align="center">
-&#x20; \<strong>Every circuit has a secret.\</strong>\<br/>
-&#x20; \<em>Find the fault. Prove it with measurements.\</em>
-\</p>
-
-\<p align="center">
-&#x20; 🔎 \<strong>CIRCUIT SLEUTH — The Electronics Detective\</strong>
-\</p>
-
-\<p align="center">
-&#x20; \<a href="[https://circuit-sleuth.embarko.app/](https://circuit-sleuth.embarko.app/)">Launch App\</a>
-&#x20; ·
-&#x20; \<a href="#-how-to-play">How to Play\</a>
-&#x20; ·
-&#x20; \<a href="#-built-with">Technology\</a>
-\</p>
+<div align="center">
+🚀 Launch CIRCUIT SLEUTH · 🧭 Back to Top
+"Every circuit has a secret. Find the fault. Prove it with measurements."
+</div>
