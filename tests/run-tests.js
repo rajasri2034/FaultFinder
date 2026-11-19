@@ -3,7 +3,7 @@
  * Browser: open index.html?test=1
  */
 
-import { awardXp, buildFaultReport, computeScore, diagnosisIsCorrect, meterFactor, METER_DELAY_MS, plainCircuit, rankFor, takeMeasurement } from '../js/engine.js';
+import { awardXp, buildFaultReport, buildShareCardText, computeScore, diagnosisIsCorrect, meterFactor, METER_DELAY_MS, plainCircuit, rankFor, shareResults, takeMeasurement } from '../js/engine.js';
 import { API_URL, sanitizeNickname, submitOnline, upsertLocal } from '../js/leaderboard.js';
 import { caseUnlocked, FAULT_TYPES, getCase, listCases } from '../js/levels.js';
 import { getMentorHint } from '../js/mentor.js';
@@ -320,6 +320,52 @@ export async function runAllTests(options = {}) {
   await run('fault report is computed, not copied from expected', () => {
     const report = buildFaultReport(getCase(1));
     assert(report.explanation.includes('D1 is open'), 'explanation');
+  });
+
+  await run('stage 5: mentor 3 escalating levels use measurement log without reading answer key', async () => {
+    const level = getCase(1);
+    const guarded = new Proxy(level, {
+      get(target, prop, receiver) {
+        if (prop === 'expected' || prop === 'fault') throw new Error('mentor leaked answer key');
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    const empty1 = getMentorHint(guarded, [], 1);
+    assert(empty1 instanceof Promise, 'mentor must return a Promise');
+    const h0 = await empty1;
+    assert(h0.toLowerCase().includes("haven't taken any measurements") || h0.length > 20, 'empty log guidance');
+
+    const log = [
+      { mode: 'voltage', powerOn: true, red: 'TP2', black: 'TP3', valid: true, raw: 5, display: '5.00' },
+    ];
+    const h1 = await getMentorHint(guarded, log, 1);
+    const h2 = await getMentorHint(guarded, log, 2);
+    const h3 = await getMentorHint(guarded, log, 3);
+    assert(h1 !== h2 && h2 !== h3 && h1.includes('TP2'), '3 distinct measurement-aware hints');
+  });
+
+  await run('stage 5: scoring penalties, streak bonuses, star ratings, and duplicate XP guard', () => {
+    const streakBoost = computeScore({ measurements: 2, hints: 0, poweredResistance: 0, wrongAttempts: 0, elapsedSec: 20, streak: 3 });
+    assert(streakBoost.score === 1650 && streakBoost.stars === 3, 'streak 3 should give 1650');
+    const penalized = computeScore({ measurements: 8, hints: 2, poweredResistance: 1, wrongAttempts: 2, elapsedSec: 200, streak: 1 });
+    assert(penalized.score === 100 && penalized.stars === 1, 'minimum floor 100 prevents negative scores');
+    const dup = awardXp(1500, 1500);
+    const lower = awardXp(1500, 1200);
+    assert(dup.gained === 0 && lower.gained === 0 && dup.best === 1500, 'duplicate XP prevented');
+  });
+
+  await run('stage 5: leaderboard sanitization, sorting, opt-in consent, and share fallback', async () => {
+    assert(sanitizeNickname('<script>alert(1)</script>VeryLongDetectiveName') === 'alert(1)VeryLong', 'sanitized max 16 chars');
+    const lb = upsertLocal([{ name: 'A', score: 900 }], '<b>Zed</b>', 1400, { rank: 'Technician' });
+    assert(lb.entries[0].name === 'Zed' && lb.entries[0].score === 1400, 'sorted descending');
+    const noConsent = await submitOnline('Zed', 1400, { consented: false });
+    assert(noConsent.ok === false && noConsent.message === 'Consent required before uploading', noConsent.message);
+    const withConsent = await submitOnline('Zed', 1400, { consented: true });
+    assert(withConsent.ok === false && withConsent.message === 'Online leaderboard unavailable', withConsent.message);
+    const card = buildShareCardText({ nickname: 'Zed', score: 1400, rank: 'Technician', casesSolved: 5, stars: 3 });
+    assert(card.includes('CIRCUIT SLEUTH') && card.includes('1400'), 'share card text');
+    const shared = await shareResults({ nickname: 'Zed', score: 1400, rank: 'Technician', casesSolved: 5, stars: 3 }, { navigatorObj: null });
+    assert(shared.ok === true && shared.method === 'text' && shared.text.includes('CIRCUIT SLEUTH'), 'graceful share fallback');
   });
 
   const overrides = listCases().filter((entry) => entry.override === true).map((entry) => entry.id);

@@ -399,3 +399,11 @@ body {
 .nickname-input-group { display: flex; gap: 8px; margin-top: 6px; }
 .test-panel { margin-top: 20px; }
 .test-output { margin: 0; padding: 12px; background: var(--bg-light); border: 1px solid var(--border-light); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 0.82rem; overflow-x: auto; white-space: pre-wrap; }
+/* Stage 5: Rank-Up, Online Consent, Share Card & Game Over */
+.rankup-banner { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--success-bg); border: 1px solid rgba(21, 128, 61, 0.35); color: var(--success-green); font-weight: 700; font-size: 0.9rem; margin-bottom: 12px; }
+.consent-box { text-align: left; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg-light); border: 1px solid var(--border-light); font-size: 0.82rem; margin-bottom: 12px; display: grid; gap: 6px; }
+.consent-label { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-weight: 600; color: var(--text-charcoal); }
+.online-status { font-size: 0.8rem; color: var(--text-body); margin: 0; }
+.share-card-box { text-align: left; padding: 12px; border-radius: var(--radius-sm); background: var(--bg-charcoal); color: #FFFFFF; font-size: 0.84rem; margin-bottom: 12px; display: grid; gap: 6px; }
+.share-card-brand { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #D2A8FF; }
+.share-status { font-size: 0.78rem; color: #D2A8FF; margin: 0; }

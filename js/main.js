@@ -1,21 +1,24 @@
 /**
- * CIRCUIT SLEUTH Main Application Controller & Screen Router (Stage 1 + Stage 2 + Stage 3 + Stage 4).
+ * CIRCUIT SLEUTH Main Application Controller & Screen Router (Stages 1–5).
  */
 
 import {
   awardXp,
   buildFaultReport,
+  buildShareCardText,
   computeScore,
   diagnosisIsCorrect,
   METER_DELAY_MS,
+  rankFor,
+  shareResults,
   takeMeasurement,
-} from './engine.js';
-import { upsertLocal } from './leaderboard.js';
+} from './engine.js?v=5';
+import { sanitizeNickname, submitOnline, upsertLocal } from './leaderboard.js?v=5';
 import { FAULT_LABELS, FAULT_TYPES, getCase, listCases } from './levels.js?v=4';
-import { getMentorHint } from './mentor.js';
+import { getMentorHint } from './mentor.js?v=5';
 import { generateWaveform, measureWaveform, OscilloscopeView, SCOPE_LAB } from './scope.js?v=3';
 import { loadSave, writeSave } from './storage.js';
-import { renderHome, renderMeasurementsLog, renderSchematic } from './ui.js?v=4';
+import { renderHome, renderMeasurementsLog, renderSchematic } from './ui.js?v=5';
 
 const MODE_MAP = {
   DCV: 'voltage',
@@ -40,6 +43,7 @@ const state = {
   elapsedSeconds: 0,
   timerHandle: null,
   solvedSuccess: false,
+  scoreSaved: false,
   tutorialStep: 0,
   lastScoreResult: null,
   scopeTp: 'TP2',
@@ -266,6 +270,7 @@ function startCase(caseNumber) {
   state.measurements = [];
   state.elapsedSeconds = 0;
   state.solvedSuccess = false;
+  state.scoreSaved = false;
   state.tutorialStep = 0;
 
   document.getElementById('case-chapter').textContent = `Chapter: ${lvl.chapter}`;
@@ -275,6 +280,10 @@ function startCase(caseNumber) {
   document.getElementById('dmm-warning').classList.add('hidden');
   document.getElementById('dmm-readout').textContent = '0.00 V';
   document.getElementById('btn-save-score').textContent = 'Save';
+  document.getElementById('btn-save-score').disabled = false;
+  document.getElementById('online-lb-status').classList.add('hidden');
+  document.getElementById('share-status').classList.add('hidden');
+  document.getElementById('check-online-consent').checked = false;
 
   document.querySelectorAll('.dmm-mode-btn').forEach((b) => {
     b.classList.toggle('active', b.dataset.mode === 'DCV');
@@ -311,7 +320,7 @@ function handleTapTestPoint(tpId) {
 
 function openDiagnosisModal() {
   const lvl = state.currentLevel;
-  if (!lvl) return;
+  if (!lvl || state.solvedSuccess) return;
 
   const selectComp = document.getElementById('select-component');
   selectComp.innerHTML = lvl.components
@@ -327,9 +336,48 @@ function openDiagnosisModal() {
   document.getElementById('modal-diagnosis').classList.remove('hidden');
 }
 
+function refreshShareSummary() {
+  if (!state.lastScoreResult) return;
+  const nick = sanitizeNickname(document.getElementById('input-nickname').value);
+  const casesSolved = Object.keys(state.save.solved || {}).filter((k) => state.save.solved[k]).length;
+  const rank = rankFor(state.save.xp || 0).title;
+  document.getElementById('share-card-summary').textContent = buildShareCardText({
+    nickname: nick,
+    score: state.lastScoreResult.score,
+    rank,
+    casesSolved,
+    stars: state.lastScoreResult.stars,
+  });
+}
+
+function showGameOverModal() {
+  if (state.timerHandle) clearInterval(state.timerHandle);
+  const casesSolved = Object.keys(state.save.solved || {}).filter((k) => state.save.solved[k]).length;
+  const rank = rankFor(state.save.xp || 0).title;
+  const totalStars = Object.values(state.save.best || {}).reduce((acc, sc) => acc + (sc >= 1300 ? 3 : sc >= 900 ? 2 : 1), 0);
+  const sessionRes = computeScore({
+    measurements: state.measurements.length,
+    hints: state.hintsUsed,
+    poweredResistance: state.poweredOhmPenalties,
+    wrongAttempts: state.wrongAttempts,
+    elapsedSec: state.elapsedSeconds,
+    streak: state.streak,
+  });
+  document.getElementById('modal-diagnosis').classList.add('hidden');
+  document.getElementById('gameover-summary').textContent =
+    `You ran out of lives on Case #${state.currentLevel.number}. Your saved XP, rank, and completed cases are safe—restart this case or return to the menu!`;
+  document.getElementById('gameover-stats').innerHTML = `
+    <strong>Session Score:</strong> ${sessionRes.score} pts · <strong>Rank:</strong> ${rank}<br/>
+    <strong>Total XP:</strong> ${state.save.xp || 0} XP · <strong>Total Stars:</strong> ${totalStars} ★<br/>
+    <strong>Cases Completed:</strong> ${casesSolved} / 21 · <strong>Measurements Taken:</strong> ${state.measurements.length}
+  `;
+  document.getElementById('modal-gameover').classList.remove('hidden');
+}
+
 function handleDiagnosisSubmit(ev) {
   ev.preventDefault();
   const lvl = state.currentLevel;
+  if (!lvl || state.solvedSuccess) return;
   const compId = document.getElementById('select-component').value;
   const faultType = document.getElementById('select-fault-type').value;
   const feedbackEl = document.getElementById('diag-feedback');
@@ -355,12 +403,22 @@ function handleDiagnosisSubmit(ev) {
     state.lastScoreResult = scoreRes;
     if (state.wrongAttempts === 0) state.streak += 1;
 
+    const oldRank = rankFor(state.save.xp || 0).title;
     const prevBest = state.save.best[lvl.number] || 0;
     const xpRes = awardXp(prevBest, scoreRes.score);
     state.save.best[lvl.number] = xpRes.best;
     state.save.solved[lvl.number] = true;
     state.save.xp = (state.save.xp || 0) + xpRes.gained;
     writeSave(state.save);
+    const newRank = rankFor(state.save.xp || 0).title;
+
+    const rankupEl = document.getElementById('result-rankup');
+    if (newRank !== oldRank) {
+      rankupEl.textContent = `🎉 Rank Up! You promoted from ${oldRank} to ${newRank}!`;
+      rankupEl.classList.remove('hidden');
+    } else {
+      rankupEl.classList.add('hidden');
+    }
 
     const report = buildFaultReport(lvl);
     document.getElementById('modal-diagnosis').classList.add('hidden');
@@ -369,10 +427,11 @@ function handleDiagnosisSubmit(ev) {
     document.getElementById('result-explanation').textContent = report.explanation;
     document.getElementById('result-learn').innerHTML = `<strong>Learn:</strong> ${report.learn}`;
     document.getElementById('result-score-breakdown').innerHTML = `
-      Base: ${scoreRes.parts.base} | Efficiency Bonus: +${scoreRes.parts.efficiency} | No-Hint Bonus: +${scoreRes.parts.noHints}<br/>
+      Base: ${scoreRes.parts.base} | Efficiency: +${scoreRes.parts.efficiency} | No-Hint: +${scoreRes.parts.noHints} | Streak: ×${scoreRes.streakMult.toFixed(2)}<br/>
       Penalties: -${scoreRes.parts.extra + scoreRes.parts.hintPenalty + scoreRes.parts.powerPenalty + scoreRes.parts.wrongPenalty + scoreRes.parts.timePenalty}<br/>
-      <strong>Final Score: ${scoreRes.score} pts (+${xpRes.gained} XP)</strong>
+      <strong>Final Score: ${scoreRes.score} pts (+${xpRes.gained} XP) · Rank: ${newRank}</strong>
     `;
+    refreshShareSummary();
 
     const allCases = listCases();
     const nextLvl = allCases.find((c) => c.number === lvl.number + 1);
@@ -395,12 +454,7 @@ function handleDiagnosisSubmit(ev) {
   modalCard.classList.add('shake');
 
   if (state.lives === 0) {
-    feedbackEl.textContent = 'Out of lives! Resetting case with full lives so you can try again.';
-    feedbackEl.classList.remove('hidden');
-    window.setTimeout(() => {
-      document.getElementById('modal-diagnosis').classList.add('hidden');
-      startCase(lvl.number);
-    }, 1200);
+    showGameOverModal();
   } else {
     feedbackEl.textContent = `Not quite — ${compId} (${FAULT_LABELS[faultType] || faultType}) doesn't match the measurements. -300 pts, ${state.lives} lives left.`;
     feedbackEl.classList.remove('hidden');
@@ -548,13 +602,61 @@ function bindEvents() {
     showScreen('home');
   });
 
+  document.getElementById('input-nickname').addEventListener('input', refreshShareSummary);
+
   document.getElementById('btn-save-score').addEventListener('click', () => {
-    if (!state.currentLevel || !state.lastScoreResult) return;
+    if (!state.currentLevel || !state.lastScoreResult || state.scoreSaved) return;
     const nick = document.getElementById('input-nickname').value;
-    const res = upsertLocal(state.save.leaderboard, nick, state.lastScoreResult.score);
+    const rank = rankFor(state.save.xp || 0).title;
+    const casesSolved = Object.keys(state.save.solved || {}).filter((k) => state.save.solved[k]).length;
+    const res = upsertLocal(state.save.leaderboard, nick, state.lastScoreResult.score, {
+      rank,
+      stars: state.lastScoreResult.stars,
+      casesSolved,
+    });
     state.save.leaderboard = res.entries;
     writeSave(state.save);
+    state.scoreSaved = true;
     document.getElementById('btn-save-score').textContent = 'Saved ✓';
+    document.getElementById('btn-save-score').disabled = true;
+  });
+
+  document.getElementById('btn-upload-online').addEventListener('click', async () => {
+    if (!state.lastScoreResult) return;
+    const consented = document.getElementById('check-online-consent').checked;
+    const nick = document.getElementById('input-nickname').value;
+    const res = await submitOnline(nick, state.lastScoreResult.score, { consented });
+    const statusEl = document.getElementById('online-lb-status');
+    statusEl.textContent = res.message;
+    statusEl.classList.remove('hidden');
+  });
+
+  document.getElementById('btn-share-results').addEventListener('click', async () => {
+    if (!state.lastScoreResult) return;
+    const nick = sanitizeNickname(document.getElementById('input-nickname').value);
+    const casesSolved = Object.keys(state.save.solved || {}).filter((k) => state.save.solved[k]).length;
+    const rank = rankFor(state.save.xp || 0).title;
+    const res = await shareResults({
+      nickname: nick,
+      score: state.lastScoreResult.score,
+      rank,
+      casesSolved,
+      stars: state.lastScoreResult.stars,
+    });
+    const statusEl = document.getElementById('share-status');
+    statusEl.textContent = res.method === 'share' ? 'Shared!' : res.method === 'clipboard' ? 'Copied to clipboard!' : `Copy: ${res.text}`;
+    statusEl.classList.remove('hidden');
+  });
+
+  document.getElementById('btn-gameover-restart').addEventListener('click', () => {
+    document.getElementById('modal-gameover').classList.add('hidden');
+    if (state.currentLevel) startCase(state.currentLevel.number);
+  });
+
+  document.getElementById('btn-gameover-home').addEventListener('click', () => {
+    document.getElementById('modal-gameover').classList.add('hidden');
+    renderHome(state.save, listCases());
+    showScreen('home');
   });
 
   document.getElementById('btn-result-home').addEventListener('click', () => {

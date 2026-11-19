@@ -4,10 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CIRCUIT SLEUTH – The Electronics Detective</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=4" />
+  <link rel="stylesheet" href="css/styles.css?v=5" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -473,7 +474,14 @@
       <h2 id="result-title">Case Solved!</h2>
       <p id="result-explanation" class="result-explanation"></p>
       <div id="result-learn" class="result-learn"></div>
+      <div id="result-rankup" class="rankup-banner hidden" role="status"></div>
       <div id="result-score-breakdown" class="score-breakdown"></div>
+      <div id="share-card-box" class="share-card-box">
+        <div class="share-card-brand">CIRCUIT SLEUTH · RESULTS SUMMARY</div>
+        <div id="share-card-summary"></div>
+        <button id="btn-share-results" class="btn btn-secondary btn-sm" type="button">Share / Copy Score Card</button>
+        <p id="share-status" class="share-status hidden"></p>
+      </div>
 
       <div id="nickname-save-row" class="nickname-row">
         <label class="field-label" for="input-nickname">Save score to Leaderboard</label>
@@ -483,9 +491,30 @@
         </div>
       </div>
 
+      <div class="consent-box">
+        <label class="consent-label">
+          <input id="check-online-consent" type="checkbox" />
+          <span>Opt in to upload only my sanitized nickname (max 16 chars) and score to the shared leaderboard (no personal info collected).</span>
+        </label>
+        <button id="btn-upload-online" class="btn btn-secondary btn-sm" type="button">Upload to Shared Leaderboard</button>
+        <p id="online-lb-status" class="online-status hidden"></p>
+      </div>
       <div class="modal-actions">
         <button id="btn-result-home" class="btn btn-ghost" type="button">Home</button>
         <button id="btn-next-case" class="btn btn-primary" type="button">Next Case →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GAME OVER -->
+  <div id="modal-gameover" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="gameover-title">
+    <div class="modal-card result-card">
+      <h2 id="gameover-title">Session Ended — Out of Lives</h2>
+      <p id="gameover-summary" class="result-explanation"></p>
+      <div id="gameover-stats" class="score-breakdown"></div>
+      <div class="modal-actions">
+        <button id="btn-gameover-home" class="btn btn-ghost" type="button">Return to Menu</button>
+        <button id="btn-gameover-restart" class="btn btn-primary" type="button">Restart Case</button>
       </div>
     </div>
   </div>
@@ -508,6 +537,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js?v=4"></script>
+  <script type="module" src="js/main.js?v=5"></script>
 </body>
 </html>

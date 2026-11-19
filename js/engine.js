@@ -1,35 +1,20 @@
-/**
- * Measurement formatting, scoring and the fault report.
- * takeMeasurement and buildFaultReport never read level.expected.
- */
-
-import { measureContinuity, measureResistance, measureVoltage, solveCircuit } from './solver.js';
+import { measureContinuity, measureResistance, measureVoltage } from './solver.js';
 
 export const METER_DELAY_MS = 300;
 export const OL_DISPLAY = 'OL';
 
-const RANKS = [
-  { title: 'Apprentice', min: 0 },
-  { title: 'Technician', min: 2000 },
-  { title: 'Engineer', min: 5000 },
-  { title: 'Senior Engineer', min: 10000 },
-  { title: 'Master Detective', min: 20000 },
-];
-
-export function hashString(value) {
-  let hash = 2166136261;
-  const text = String(value);
-  for (let index = 0; index < text.length; index += 1) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
+export function hashString(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
   }
-  return hash >>> 0;
+  return h >>> 0;
 }
 
-/** One calibration factor per case, ±0.5%, so every reading on that board shifts together. */
 export function meterFactor(caseId) {
-  const unit = (hashString(caseId) % 10001) / 10000;
-  return 1 + (unit - 0.5) * 0.01;
+  const h = hashString(String(caseId || 'case'));
+  return 0.995 + ((h % 1001) / 1000) * 0.01;
 }
 
 export function plainCircuit(level) {
@@ -43,232 +28,182 @@ export function plainCircuit(level) {
   };
 }
 
-function pointNode(level, pointId) {
-  const point = (level.testPoints || []).find((entry) => entry.id === pointId);
-  return point ? point.node : null;
-}
-
-export function formatVoltage(volts) {
-  if (!Number.isFinite(volts)) return 'Err';
-  const rounded = Math.round(volts * 100) / 100;
-  const signed = Math.abs(rounded) < 0.005 ? 0 : rounded;
-  return `${signed < 0 ? '-' : ''}${Math.abs(signed).toFixed(2)}`;
+export function formatVoltage(v) {
+  return `${v.toFixed(2)}`;
 }
 
 export function formatOhms(ohms) {
-  if (!Number.isFinite(ohms)) return { text: OL_DISPLAY, unit: 'Ω' };
-  const magnitude = Math.abs(ohms);
-  if (magnitude < 100) return { text: (Math.round(magnitude * 10) / 10).toFixed(1), unit: 'Ω' };
-  if (magnitude < 10000) return { text: String(Math.round(magnitude)), unit: 'Ω' };
-  if (magnitude < 1e6) {
-    const kilo = magnitude / 1000;
-    const text = kilo < 10 ? kilo.toFixed(2) : kilo < 100 ? kilo.toFixed(1) : String(Math.round(kilo));
-    return { text, unit: 'kΩ' };
-  }
-  return { text: (magnitude / 1e6).toFixed(2), unit: 'MΩ' };
+  if (!Number.isFinite(ohms)) return OL_DISPLAY;
+  if (ohms >= 1e6) return `${(ohms / 1e6).toFixed(2)} MΩ`;
+  if (ohms >= 1e3) return `${(ohms / 1e3).toFixed(2)} kΩ`;
+  return `${ohms.toFixed(ohms < 10 ? 2 : 1)} Ω`;
 }
 
-function applyFactor(value, factor) {
-  if (!Number.isFinite(value) || value === 0) return value;
-  return value * factor;
-}
-
-export function takeMeasurement(level, request) {
-  const mode = request.mode;
-  const powerOn = Boolean(request.powerOn);
-  const redId = request.redId;
-  const blackId = request.blackId;
-  const redNode = pointNode(level, redId);
-  const blackNode = pointNode(level, blackId);
-  const base = {
-    mode,
-    red: redId,
-    black: blackId,
-    powerOn,
-    valid: false,
-    ol: false,
-    beep: false,
-    warning: null,
-    penalty: false,
-    raw: null,
-    display: '----',
-    unit: '',
-    exact: '----',
-  };
-
-  if (!redNode || !blackNode) {
-    return { ...base, warning: 'Place both probes' };
-  }
-
+export function takeMeasurement(level, { mode = 'voltage', powerOn = true, redId, blackId }) {
   const circuit = plainCircuit(level);
-  const factor = meterFactor(level.id);
+  const redTp = level.testPoints.find((t) => t.id === redId);
+  const blackTp = level.testPoints.find((t) => t.id === blackId);
+  if (!redTp || !blackTp) throw new Error('Invalid test point');
 
-  if (mode === 'resistance' || mode === 'continuity') {
-    if (powerOn) {
-      return {
-        ...base,
-        valid: false,
-        display: 'Err',
-        unit: '',
-        exact: 'Err',
-        warning: 'Never measure resistance on a powered circuit',
-        penalty: true,
-        unstable: true,
-      };
-    }
-    const reading = mode === 'continuity'
-      ? measureContinuity(circuit, redNode, blackNode, { faultActive: true, powerOn: false })
-      : measureResistance(circuit, redNode, blackNode, { faultActive: true, powerOn: false });
-    if (!reading.valid) {
-      return {
-        ...base,
-        display: 'Err',
-        exact: 'Err',
-        warning: reading.warning || 'Meter could not settle',
-        unstable: true,
-      };
-    }
-    if (reading.ol) {
-      return {
-        ...base,
-        valid: true,
-        ol: true,
-        beep: false,
-        raw: Infinity,
-        display: OL_DISPLAY,
-        exact: OL_DISPLAY,
-        unit: 'Ω',
-        warning: null,
-      };
-    }
-    const jittered = applyFactor(reading.ohms, factor);
-    const formatted = formatOhms(jittered);
-    const exact = formatOhms(reading.ohms);
-    const beep = mode === 'continuity' && reading.ohms < 50;
+  const opts = { faultActive: true, powerOn };
+  if (mode === 'voltage') {
+    const res = measureVoltage(circuit, redTp.node, blackTp.node, opts);
+    const val = res.valid ? res.volts : 0;
     return {
-      ...base,
-      valid: true,
+      mode,
+      powerOn,
+      red: redId,
+      black: blackId,
+      valid: res.valid,
       ol: false,
-      beep,
-      raw: reading.ohms,
-      display: formatted.text,
-      exact: exact.text,
-      unit: formatted.unit,
+      raw: val,
+      display: formatVoltage(val),
+      unit: 'V',
+      warning: null,
+      penalty: 0,
+      beep: false,
     };
   }
-
-  const reading = measureVoltage(circuit, redNode, blackNode, { faultActive: true, powerOn });
-  if (!reading.valid) {
-    return { ...base, display: 'Err', exact: 'Err', warning: 'Meter could not settle', unstable: true };
+  if (mode === 'resistance') {
+    const res = measureResistance(circuit, redTp.node, blackTp.node, opts);
+    if (!res.valid) {
+      return {
+        mode,
+        powerOn,
+        red: redId,
+        black: blackId,
+        valid: false,
+        ol: false,
+        raw: null,
+        display: 'ERR',
+        unit: '',
+        warning: res.warning || 'Turn power OFF before measuring resistance!',
+        penalty: 200,
+        beep: false,
+      };
+    }
+    return {
+      mode,
+      powerOn,
+      red: redId,
+      black: blackId,
+      valid: true,
+      ol: res.ol,
+      raw: res.ohms,
+      display: res.ol ? OL_DISPLAY : formatOhms(res.ohms),
+      unit: '',
+      warning: null,
+      penalty: 0,
+      beep: false,
+    };
   }
-  const jittered = applyFactor(reading.volts, factor);
+  const res = measureContinuity(circuit, redTp.node, blackTp.node, opts);
+  if (!res.valid) {
+    return {
+      mode,
+      powerOn,
+      red: redId,
+      black: blackId,
+      valid: false,
+      ol: false,
+      raw: null,
+      display: 'ERR',
+      unit: '',
+      warning: res.warning || 'Turn power OFF before measuring continuity!',
+      penalty: 200,
+      beep: false,
+    };
+  }
   return {
-    ...base,
+    mode,
+    powerOn,
+    red: redId,
+    black: blackId,
     valid: true,
-    ol: false,
-    raw: reading.volts,
-    display: formatVoltage(jittered),
-    exact: formatVoltage(reading.volts),
-    unit: 'V',
-    warning: powerOn ? null : 'Power is off',
+    ol: res.ol,
+    raw: res.ohms,
+    display: res.ol ? OL_DISPLAY : formatOhms(res.ohms),
+    unit: res.beep ? 'BEEP' : '',
+    warning: null,
+    penalty: 0,
+    beep: res.beep,
   };
-}
-
-function exactReading(level, check, faultActive) {
-  const circuit = plainCircuit(level);
-  const redNode = pointNode(level, check.red);
-  const blackNode = pointNode(level, check.black);
-  if (check.mode === 'resistance' || check.mode === 'continuity') {
-    const reading = measureResistance(circuit, redNode, blackNode, { faultActive, powerOn: false });
-    if (!reading.valid) return 'Err';
-    if (reading.ol) return OL_DISPLAY;
-    return formatOhms(reading.ohms).text;
-  }
-  const reading = measureVoltage(circuit, redNode, blackNode, { faultActive, powerOn: true });
-  if (reading.ol) return OL_DISPLAY;
-  return formatVoltage(reading.volts);
 }
 
 export function buildFaultReport(level) {
-  const rows = (level.checks || []).map((check) => ({
-    label: check.label,
-    mode: check.mode,
-    healthy: exactReading(level, check, false),
-    faulty: exactReading(level, check, true),
-  }));
-  const healthy = solveCircuit(plainCircuit(level), { faultActive: false, powerOn: true });
-  const faulty = solveCircuit(plainCircuit(level), { faultActive: true, powerOn: true });
+  const { component, type } = level.fault;
   return {
-    rows,
-    explanation: level.explanation,
-    learn: level.learn,
-    healthyLedCurrent: healthy.branches.D1?.current ?? 0,
-    faultyLedCurrent: faulty.branches.D1?.current ?? 0,
+    explanation: level.explanation || `${component} is ${type}.`,
+    learn: level.learn || '',
   };
 }
 
-export function computeScore(input) {
-  const measurements = input.measurements ?? 0;
-  const hints = input.hints ?? 0;
-  const poweredResistance = input.poweredResistance ?? 0;
-  const wrongAttempts = input.wrongAttempts ?? 0;
-  const elapsedSec = input.elapsedSec ?? 0;
-  const streak = input.streak ?? 1;
-  const extra = Math.max(0, measurements - 4) * 50;
+export function computeScore({ measurements = 0, hints = 0, poweredResistance = 0, wrongAttempts = 0, elapsedSec = 0, streak = 1 }) {
+  const base = 1000;
+  const efficiency = measurements <= 4 ? 300 : Math.max(0, 300 - (measurements - 4) * 50);
+  const noHints = hints === 0 ? 200 : 0;
+  const extra = measurements > 6 ? (measurements - 6) * 25 : 0;
   const hintPenalty = hints * 150;
   const powerPenalty = poweredResistance * 200;
   const wrongPenalty = wrongAttempts * 300;
-  const timePenalty = Math.max(0, Math.floor(elapsedSec) - 60) * 2;
-  const efficiency = measurements <= 4 ? 300 : 0;
-  const noHints = hints === 0 ? 200 : 0;
-  const subtotal = Math.max(
-    0,
-    1000 - extra - hintPenalty - powerPenalty - wrongPenalty - timePenalty + efficiency + noHints,
-  );
-  let multiplier = 1;
-  if (wrongAttempts === 0) {
-    if (streak >= 4) multiplier = 1.5;
-    else if (streak === 3) multiplier = 1.25;
-    else if (streak === 2) multiplier = 1.1;
-  }
-  const score = Math.round(subtotal * multiplier);
-  const stars = score >= 900 ? 3 : score >= 600 ? 2 : 1;
-  return {
-    score,
-    stars,
-    multiplier,
-    subtotal,
-    parts: {
-      base: 1000,
-      extra,
-      hintPenalty,
-      powerPenalty,
-      wrongPenalty,
-      timePenalty,
-      efficiency,
-      noHints,
-    },
-  };
+  const timePenalty = elapsedSec > 180 ? Math.min(200, Math.floor((elapsedSec - 180) / 10) * 10) : 0;
+  const raw = base + efficiency + noHints - extra - hintPenalty - powerPenalty - wrongPenalty - timePenalty;
+  const streakMult = streak > 1 ? 1 + Math.min(0.25, (streak - 1) * 0.05) : 1;
+  const score = Math.max(100, Math.round(raw * streakMult));
+  const stars = score >= 1300 ? 3 : score >= 900 ? 2 : 1;
+  return { score, stars, streakMult, parts: { base, efficiency, noHints, extra, hintPenalty, powerPenalty, wrongPenalty, timePenalty } };
 }
 
-export function awardXp(previousBest, score) {
-  const prior = previousBest || 0;
-  const best = Math.max(prior, score);
-  return { best, gained: best - prior };
+export function awardXp(prevBest, score) {
+  const best = Math.max(prevBest || 0, score);
+  const gained = Math.max(0, best - (prevBest || 0));
+  return { best, gained };
 }
 
 export function rankFor(xp) {
-  let current = RANKS[0];
-  for (const rank of RANKS) {
-    if (xp >= rank.min) current = rank;
+  const ranks = [
+    { title: 'Apprentice', at: 0 },
+    { title: 'Technician', at: 2000 },
+    { title: 'Engineer', at: 5000 },
+    { title: 'Senior Engineer', at: 10000 },
+    { title: 'Master Detective', at: 20000 },
+  ];
+  let idx = 0;
+  for (let i = 0; i < ranks.length; i += 1) {
+    if (xp >= ranks[i].at) idx = i;
   }
-  const index = RANKS.indexOf(current);
-  const next = RANKS[index + 1] || null;
-  const span = next ? next.min - current.min : 1;
-  const progress = next ? Math.min(1, (xp - current.min) / span) : 1;
-  return { title: current.title, min: current.min, next: next ? next.title : null, nextAt: next ? next.min : null, progress };
+  const cur = ranks[idx];
+  const next = ranks[idx + 1] || null;
+  const progress = next ? (xp - cur.at) / (next.at - cur.at) : 1;
+  return { title: cur.title, nextAt: next ? next.at : null, progress };
 }
 
-export function diagnosisIsCorrect(level, componentId, faultType) {
-  return Boolean(level.fault && level.fault.component === componentId && level.fault.type === faultType);
+export function diagnosisIsCorrect(level, compId, faultType) {
+  return Boolean(level.fault && level.fault.component === compId && level.fault.type === faultType);
+}
+
+export function buildShareCardText({ nickname = 'Detective', score = 0, rank = 'Apprentice', casesSolved = 0, stars = 3 } = {}) {
+  const starStr = '★'.repeat(Math.max(0, Math.min(3, stars))) + '☆'.repeat(Math.max(0, 3 - stars));
+  return `CIRCUIT SLEUTH – The Electronics Detective | ${nickname} | Score: ${score} pts (${starStr}) | Rank: ${rank} | Cases Solved: ${casesSolved}/21`;
+}
+
+export async function shareResults(summary, { navigatorObj = typeof navigator !== 'undefined' ? navigator : null } = {}) {
+  const text = buildShareCardText(summary);
+  if (navigatorObj && typeof navigatorObj.share === 'function') {
+    try {
+      await navigatorObj.share({ title: 'CIRCUIT SLEUTH Results', text });
+      return { ok: true, method: 'share', text };
+    } catch {
+      // Fall through to clipboard
+    }
+  }
+  if (navigatorObj && navigatorObj.clipboard && typeof navigatorObj.clipboard.writeText === 'function') {
+    try {
+      await navigatorObj.clipboard.writeText(text);
+      return { ok: true, method: 'clipboard', text };
+    } catch {
+      // Fall through to text fallback
+    }
+  }
+  return { ok: true, method: 'text', text };
 }

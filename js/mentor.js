@@ -1,74 +1,69 @@
 /**
- * Rule-based mentor. No API key.
- *
- * To plug in an LLM later, set MENTOR_API_URL and uncomment the fetch block.
- * getMentorHint must keep returning Promise<string>.
+ * Rule-based AI Mentor hint system (works 100% offline with zero API keys).
+ * Returns a Promise<string> so an external LLM endpoint can be plugged in later.
+ * Never reads level.expected or level.fault.
  */
 
-export const MENTOR_API_URL = '';
-
-function latestVoltage(measurements) {
-  for (let index = measurements.length - 1; index >= 0; index -= 1) {
-    const entry = measurements[index];
-    if (entry.mode === 'voltage' && entry.valid && Number.isFinite(entry.raw)) return entry;
-  }
-  return null;
+function summarizeLog(measurements = []) {
+  const count = measurements.length;
+  const last = count > 0 ? measurements[count - 1] : null;
+  const hasPowerOffOhm = measurements.some((m) => (m.mode === 'resistance' || m.mode === 'continuity') && !m.powerOn);
+  const hasVoltage = measurements.some((m) => m.mode === 'voltage' && m.powerOn);
+  const poweredOhmWarn = measurements.find((m) => m.warning);
+  const shortReading = measurements.find((m) => (m.mode === 'resistance' || m.mode === 'continuity') && !m.ol && typeof m.raw === 'number' && m.raw < 1);
+  const openReading = measurements.find((m) => m.mode === 'resistance' && m.ol);
+  const zeroVoltReading = measurements.find((m) => m.mode === 'voltage' && m.valid && Math.abs(m.raw) < 0.05 && m.red !== m.black);
+  return { count, last, hasPowerOffOhm, hasVoltage, poweredOhmWarn, shortReading, openReading, zeroVoltReading };
 }
 
-function contextual(level, measurements) {
-  const last = latestVoltage(measurements);
-  if (!last) return '';
-  const supply = level.supply?.voltage ?? 0;
-  const shown = `${last.display} V`;
-  const acrossLed = last.red === 'TP2' && last.black === 'TP3';
-  const acrossResistor = (last.red === 'TP1' && last.black === 'TP2') || (last.red === 'TP2' && last.black === 'TP1');
-  if (acrossLed && Math.abs(last.raw) < 0.25) {
-    return `You measured ${shown} across the LED, and the supply is ${supply.toFixed(2)} V. The LED is not conducting. Where is the voltage sitting instead?`;
-  }
-  if (acrossLed && Math.abs(Math.abs(last.raw) - supply) < 0.35) {
-    return `You measured about the full supply across the LED (${shown}). A healthy red LED would sit near 2 V, not on the rail.`;
-  }
-  if (acrossLed && Math.abs(Math.abs(last.raw) - 2) < 0.35) {
-    return `That ${shown} reading is a normal red LED drop. This LED is conducting. Look at the other part.`;
-  }
-  if (acrossResistor && Math.abs(Math.abs(last.raw) - supply) < 0.35) {
-    return `You measured ${shown} across R1, close to the full ${supply.toFixed(2)} V supply. That is a lot for a healthy series resistor on a lit LED.`;
-  }
-  if (acrossResistor && Math.abs(last.raw) < 0.25) {
-    return `You measured ${shown} across R1. Little voltage there means little current in the resistor. Check the LED voltage next.`;
-  }
-  return '';
-}
+export async function getMentorHint(level, measurements = [], hintLevel = 1) {
+  const safeLevel = Math.max(1, Math.min(3, Number(hintLevel) || 1));
+  const log = summarizeLog(measurements);
+  const baseHints = Array.isArray(level?.hints) ? level.hints : [];
+  const checks = Array.isArray(level?.checks) ? level.checks : [];
 
-function ruleHint(level, measurements, hintLevel) {
-  const scripted = (level.hints && level.hints[hintLevel - 1]) || 'Measure the supply first, then the voltage across each series part.';
-  const extra = contextual(level, measurements);
-  if (hintLevel <= 1 || !extra) return scripted;
-  if (hintLevel === 2) return extra;
-  return `${scripted} ${extra}`;
-}
+  if (log.count === 0) {
+    if (safeLevel === 1) {
+      return `You haven't taken any measurements yet. Start with DC V (Power ON) across the supply or ${checks[0]?.label || 'the first test point'} to see where voltage is present.`;
+    }
+    if (safeLevel === 2) {
+      return baseHints[1] || `Measure DC voltage at ${checks[0]?.red || 'TP2'} relative to ${level?.defaultBlack || 'GND'} first, then compare with upstream nodes.`;
+    }
+    return baseHints[2] || `Take a DC V reading at ${checks[0]?.red || 'TP2'} and then switch Power OFF to verify resistance (Ω) across the suspect branch.`;
+  }
 
-export function getMentorHint(level, measurements, hintLevel) {
-  const step = Math.min(3, Math.max(1, hintLevel | 0));
-  // Optional LLM plug-in. Leave MENTOR_API_URL empty to stay on the offline mentor.
-  // if (MENTOR_API_URL) {
-  //   return fetch(MENTOR_API_URL, {
-  //     method: 'POST',
-  //     headers: { 'Content-Type': 'application/json' },
-  //     body: JSON.stringify({
-  //       caseId: level.id,
-  //       hintLevel: step,
-  //       measurements: (measurements || []).map((entry) => ({
-  //         mode: entry.mode,
-  //         red: entry.red,
-  //         black: entry.black,
-  //         display: entry.display,
-  //       })),
-  //     }),
-  //   }).then((response) => {
-  //     if (!response.ok) throw new Error('mentor unavailable');
-  //     return response.json();
-  //   }).then((data) => String(data.hint || ''));
-  // }
-  return Promise.resolve(ruleHint(level, measurements || [], step));
+  if (safeLevel === 1) {
+    if (log.poweredOhmWarn) {
+      return `Your last ${log.poweredOhmWarn.mode} check was blocked because Bench Supply was ON. Switch POWER OFF before measuring Ω or Continuity.`;
+    }
+    if (log.zeroVoltReading) {
+      return `You measured ${log.zeroVoltReading.display} V at ${log.zeroVoltReading.red}→${log.zeroVoltReading.black}. Ask yourself whether current is being blocked upstream or shorted to ground downstream.`;
+    }
+    if (log.last && log.last.mode === 'voltage') {
+      return `You read ${log.last.display} V between ${log.last.red} and ${log.last.black}. ${baseHints[0] || 'Compare this with what a healthy stage should read.'}`;
+    }
+    return baseHints[0] || 'Compare your measured node voltages against the supply rail to narrow down which branch is misbehaving.';
+  }
+
+  if (safeLevel === 2) {
+    if (!log.hasPowerOffOhm && checks.some((c) => c.mode === 'resistance')) {
+      const resCheck = checks.find((c) => c.mode === 'resistance');
+      return `You have ${log.count} reading(s), but haven't checked passive resistance yet. Switch POWER OFF and measure Ω at ${resCheck.red}→${resCheck.black} (${resCheck.label}).`;
+    }
+    if (log.openReading) {
+      return `Your Ω reading at ${log.openReading.red}→${log.openReading.black} showed OL (open circuit). ${baseHints[1] || 'Check which component sits directly between those two test points.'}`;
+    }
+    if (log.shortReading) {
+      return `Your Ω reading at ${log.shortReading.red}→${log.shortReading.black} was ${log.shortReading.display} (near 0 Ω). ${baseHints[1] || 'Look at the parallel component across those nodes.'}`;
+    }
+    return baseHints[1] || 'Trace from the supply rail toward ground and isolate the exact component between the last good node and the first bad node.';
+  }
+
+  const nextCheck = checks.find(
+    (c) => !measurements.some((m) => m.mode === c.mode && m.red === c.red && m.black === c.black)
+  );
+  if (nextCheck) {
+    return `${baseHints[2] || 'You are close.'} Try measuring ${nextCheck.mode.toUpperCase()} at ${nextCheck.red}→${nextCheck.black} (${nextCheck.label}) to confirm your diagnosis.`;
+  }
+  return baseHints[2] || 'You already have the key readings in your log—match the abnormal voltage drop or OL/0 Ω reading to the component directly across those test points.';
 }
