@@ -1,5 +1,5 @@
 /**
- * FaultFinder Oscilloscope Engine & Midnight Neon Blueprint Canvas Renderer.
+ * FaultFinder Oscilloscope Engine & Editorial Instrument Canvas Renderer.
  * Supports sine, rectified, ripple, square/pwm, rc, dc/flat, and zero waveforms.
  */
 
@@ -189,12 +189,12 @@ export class OscilloscopeView {
     const w = rect.width;
     const h = rect.height;
 
-    ctx.fillStyle = '#111A33';
+    ctx.fillStyle = '#1C1D1F';
     ctx.fillRect(0, 0, w, h);
 
     const cols = 10;
     const rows = 8;
-    ctx.strokeStyle = 'rgba(41, 54, 87, 0.85)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 1;
 
     for (let c = 1; c < cols; c += 1) {
@@ -212,7 +212,7 @@ export class OscilloscopeView {
       ctx.stroke();
     }
 
-    ctx.strokeStyle = '#293657';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
     ctx.beginPath();
     ctx.moveTo(0, h / 2);
     ctx.lineTo(w, h / 2);
@@ -224,9 +224,9 @@ export class OscilloscopeView {
     const pxPerDivY = h / rows;
     const centerY = h / 2 - this.offsetDiv * pxPerDivY;
 
-    ctx.strokeStyle = '#00F5FF';
+    ctx.strokeStyle = '#A435F0';
     ctx.shadowBlur = 0;
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
 
     const steps = Math.max(200, Math.round(w));

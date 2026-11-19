@@ -13,9 +13,9 @@ import {
 import { upsertLocal } from './leaderboard.js';
 import { FAULT_LABELS, FAULT_TYPES, getCase, listCases } from './levels.js';
 import { getMentorHint } from './mentor.js';
-import { generateWaveform, measureWaveform, OscilloscopeView, SCOPE_LAB } from './scope.js?v=2';
+import { generateWaveform, measureWaveform, OscilloscopeView, SCOPE_LAB } from './scope.js?v=3';
 import { loadSave, writeSave } from './storage.js';
-import { renderHome, renderMeasurementsLog, renderSchematic } from './ui.js';
+import { renderHome, renderMeasurementsLog, renderSchematic } from './ui.js?v=3';
 
 const MODE_MAP = {
   DCV: 'voltage',
